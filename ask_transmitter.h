@@ -1,11 +1,15 @@
 /*
-	Mbed OS ASK transmitter version 1.0.8 2018-06-13 by Santtu Nyman.
+	Mbed OS ASK transmitter version 1.1.0 2018-06-14 by Santtu Nyman.
+	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
 		Simple ask transmitter for Mbed OS.
 		The transmitter can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.1.0 2018-06-14
+			Status member function added.
+			Some unnecessary comments removed.
 		version 1.0.8 2018-06-13
 			Valid frequencies are now limited to 1000, 1250, 2500 and 3125.
 		version 1.0.7 2018-06-11
@@ -37,13 +41,13 @@
 #define ASK_TRANSMITTER_H
 
 #define ASK_TRANSMITTER_VERSION_MAJOR 1
-#define ASK_TRANSMITTER_VERSION_MINOR 0
-#define ASK_TRANSMITTER_VERSION_PATCH 8
+#define ASK_TRANSMITTER_VERSION_MINOR 1
+#define ASK_TRANSMITTER_VERSION_PATCH 0
 
 #define ASK_TRANSMITTER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_TRANSMITTER_VERSION_MAJOR << 16) | (ASK_TRANSMITTER_VERSION_MINOR << 8) | ASK_TRANSMITTER_VERSION_PATCH))
 
 #include "mbed.h"
-#include "CRC16.h" // JARNO
+#include "ask_CRC16.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -52,6 +56,17 @@
 #endif
 #define ASK_TRANSMITTER_MAXIMUM_MESSAGE_SIZE 0xF8
 #define ASK_TRANSMITTER_BROADCAST_ADDRESS 0xFF
+
+typedef struct ask_transmitter_status_t
+{
+	int tx_frequency;
+	PinName tx_pin;
+	uint8_t tx_address;
+	bool initialized;
+	bool active;
+	size_t packets_send;
+	size_t bytes_send;
+} ask_transmitter_status_t;
 
 class ask_transmitter_t
 {
@@ -131,26 +146,39 @@ class ask_transmitter_t
 			Return
 				If the function succeeds, the return value is true and false on failure.
 		*/
+
+		void status(ask_transmitter_status_t* current_status);
+		/*
+			Description
+				Function queries the current status of the transmitter.
+			Parameters
+				current_status
+					Pointer to variable that receives current stutus of the transmitter.
+			Return
+				No return value.
+		*/
+
 	private :
 		static void _tx_interrupt_handler();
 		static uint8_t _high_nibble(uint8_t byte);
 		static uint8_t _low_nibble(uint8_t byte);
 		static uint8_t _encode_symbol(uint8_t _4bit_data);
-		//static uint16_t _crc_ccitt_update(uint16_t crc, uint8_t data); // JARNO
 		
 		void _write_byte_to_buffer(uint8_t data);
 		bool _read_byte_from_buffer(uint8_t* data);
 
 		bool _is_initialized;
-		CRC16 _kermit; // JARNO
+		CRC16 _kermit;
 		uint8_t _tx_address;
 		gpio_t _tx_pin;
-		Ticker _tx_timer;
-		uint8_t _tx_output_symbol_bit_index;
+		size_t _packets_send;
+		size_t _bytes_send;
 		uint8_t _tx_output_symbol;
+		volatile uint8_t _tx_output_symbol_bit_index;
 		volatile size_t _tx_buffer_read_index;
 		volatile size_t _tx_buffer_write_index;
 		volatile uint8_t _tx_buffer[ASK_TRANSMITTER_BUFFER_SIZE];
+		Ticker _tx_timer;
 
 		// transmitter initialization parameters
 		int _tx_frequency;

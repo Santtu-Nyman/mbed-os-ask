@@ -6,8 +6,8 @@
    javascript source for implementation, you will quickly see the same CRC model principals
    every where. Therefore, this work is merely a port from existing solutions. CRCs are difficult
    to roll by yourself. At least efficient CRCs are. */
-#ifndef CRC16_H
-#define CRC16_H
+#ifndef ASK_CRC16_H
+#define ASK_CRC16_H
 #include <stdint.h>
 
 /* There are 3 definitions on different methods to calculate a CRC:

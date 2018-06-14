@@ -1,4 +1,7 @@
-/* Mbed OS ASK receiver version 1.0.3 2018-06-13 by Santtu Nyman. */
+/*
+	Mbed OS ASK receiver version 1.1.0 2018-06-14 by Santtu Nyman.
+	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
+*/
 
 #include "ask_receiver.h"
 
@@ -61,7 +64,7 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t rx_address)
 		if (_is_initialized)
 			_rx_timer.detach();
 
-		_kermit = CRC16("Kermit", 0x1021, 0x0000, 0x0000, true, true, FAST_CRC); // JARNO
+		_kermit = CRC16("Kermit", 0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
 		_rx_address = rx_address;
 
 		// set receiver initialization parameters
@@ -74,6 +77,10 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t rx_address)
 		_rx_integrator = 0;
 		_rx_bits = 0;
 		_rx_active = 0;
+		_packets_received = 0;
+		_packets_dropped = 0;
+		_bytes_received = 0;
+		_bytes_dropped = 0;
 
 		// set ring buffer indices to 0
 		_rx_buffer_read_index = 0;
@@ -135,11 +142,41 @@ size_t ask_receiver_t::recv(uint8_t* tx_address, void* message_buffer, size_t me
 	return 0;
 }
 
-DigitalOut timer_out(D7, 0);
+void ask_receiver_t::status(ask_receiver_status_t* current_status)
+{
+	if (_is_initialized)
+	{
+		current_status->rx_frequency = _rx_frequency;
+		current_status->rx_pin = _rx_pin_name;
+		current_status->rx_address = _rx_address;
+		current_status->initialized = true;
+		if (_rx_active)
+			current_status->active = true;
+		else
+			current_status->active = false;
+		current_status->packets_available = _packets_available;
+		current_status->packets_received = _packets_received;
+		current_status->packets_dropped = _packets_dropped;
+		current_status->bytes_received = _bytes_received;
+		current_status->bytes_dropped = _bytes_dropped;
+	}
+	else
+	{
+		current_status->rx_frequency = 0;
+		current_status->rx_pin = NC;
+		current_status->rx_address = ASK_RECEIVER_BROADCAST_ADDRESS;
+		current_status->initialized = false;
+		current_status->active = false;
+		current_status->packets_available = 0;
+		current_status->packets_received = 0;
+		current_status->packets_dropped = 0;
+		current_status->bytes_received = 0;
+		current_status->bytes_dropped = 0;
+	}
+}
+
 void ask_receiver_t::_rx_interrupt_handler()
 {
-	timer_out = 1;
-
 	uint8_t rx_sample = (uint8_t)gpio_read(&_ask_receiver->_rx_pin);
 
 	// sum all samples till ramp reaches ASK_RECEIVER_RAMP_LENGTH
@@ -195,7 +232,9 @@ void ask_receiver_t::_rx_interrupt_handler()
 						// if invalid lenght or not enough space in buffer ignore this packet
 						_ask_receiver->_rx_active = 0;
 
-						timer_out = 0;
+						_ask_receiver->_packets_dropped++;
+						if (received_byte > 6)
+							_ask_receiver->_bytes_dropped += (size_t)received_byte - 7;
 						return;
 					}
 					_ask_receiver->_packet_length = received_byte;
@@ -218,9 +257,19 @@ void ask_receiver_t::_rx_interrupt_handler()
 
 					_ask_receiver->_packet_crc = ~_ask_receiver->_packet_crc;
 					if (_ask_receiver->_packet_crc == _ask_receiver->_packet_received_crc)
+					{
+						_ask_receiver->_packets_received++;
+						_ask_receiver->_bytes_received += (size_t)_ask_receiver->_packet_length - 7;
+
 						_ask_receiver->_packets_available += 1;
+					}
 					else
+					{
 						_ask_receiver->_erase_current_packet();
+
+						_ask_receiver->_packets_dropped++;
+						_ask_receiver->_bytes_dropped += (size_t)_ask_receiver->_packet_length - 7;
+					}
 
 					// stop receiving this packet
 					_ask_receiver->_rx_active = 0;
@@ -239,7 +288,6 @@ void ask_receiver_t::_rx_interrupt_handler()
 			_ask_receiver->_packet_received_crc = 0;
 		}
 	}
-	timer_out = 0;
 }
 
 uint8_t ask_receiver_t::_decode_symbol(uint8_t _6bit_symbol)

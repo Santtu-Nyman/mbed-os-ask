@@ -1,4 +1,7 @@
-/* Mbed OS ASK transmitter version 1.0.8 2018-06-13 by Santtu Nyman. */
+/*
+	Mbed OS ASK transmitter version 1.1.0 2018-06-14 by Santtu Nyman.
+	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
+*/
 
 #include "ask_transmitter.h"
 
@@ -61,12 +64,15 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t tx_addres
 		if (_is_initialized)
 			_tx_timer.detach();
 
-    _kermit = CRC16("KERMIT", 0x1021, 0x0000, 0x0000, true, true, FAST_CRC); // JARNO
+		_kermit = CRC16("KERMIT", 0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
 		_tx_address = tx_address;
 
 		// set transmitter initialization parameters
 		_tx_frequency = tx_frequency;
 		_tx_pin_name = tx_pin;
+
+		_packets_send = 0;
+		_bytes_send = 0;
 
 		// set ring buffer indices to 0
 		_tx_output_symbol_bit_index = 0;
@@ -108,7 +114,7 @@ bool ask_transmitter_t::send(uint8_t rx_address, const void* message_data, size_
 	for (size_t i = 0; i != sizeof(length_and_header); ++i)
 	{
 		next_byte = length_and_header[i];
-		crc = _kermit.fastCRC(crc, next_byte); // JARNO
+		crc = _kermit.fastCRC(crc, next_byte);
 		_write_byte_to_buffer(_encode_symbol(_high_nibble(next_byte)));
 		_write_byte_to_buffer(_encode_symbol(_low_nibble(next_byte)));
 	}
@@ -117,7 +123,7 @@ bool ask_transmitter_t::send(uint8_t rx_address, const void* message_data, size_
 	for (size_t i = 0; i != message_byte_length; ++i)
 	{
 		next_byte = *(const uint8_t*)((uintptr_t)message_data + i);
-		crc = _kermit.fastCRC(crc, next_byte); // JARNO
+		crc = _kermit.fastCRC(crc, next_byte);
 		_write_byte_to_buffer(_encode_symbol(_high_nibble(next_byte)));
 		_write_byte_to_buffer(_encode_symbol(_low_nibble(next_byte)));
 	}
@@ -135,12 +141,43 @@ bool ask_transmitter_t::send(uint8_t rx_address, const void* message_data, size_
 
 	// write 0 after the packet to set output low after the packet is send
 	_write_byte_to_buffer(0);
+
+	++_packets_send;
+	_bytes_send += message_byte_length;
+
 	return true;
 }
 
 bool ask_transmitter_t::send(const void* message_data, size_t message_byte_length)
 {
 	return send(ASK_TRANSMITTER_BROADCAST_ADDRESS, message_data, message_byte_length);
+}
+
+void ask_transmitter_t::status(ask_transmitter_status_t* current_status)
+{
+	if (_is_initialized)
+	{
+		current_status->tx_frequency = _tx_frequency;
+		current_status->tx_pin = _tx_pin_name;
+		current_status->tx_address = _tx_address;
+		current_status->initialized = true;
+		if (_tx_buffer_read_index != _tx_buffer_write_index || _tx_output_symbol_bit_index)
+			current_status->active = true;
+		else
+			current_status->active = false;
+		current_status->packets_send = _packets_send;
+		current_status->bytes_send = _bytes_send;
+	}
+	else
+	{
+		current_status->tx_frequency = 0;
+		current_status->tx_pin = NC;
+		current_status->tx_address = ASK_TRANSMITTER_BROADCAST_ADDRESS;
+		current_status->initialized = false;
+		current_status->active = false;
+		current_status->packets_send = 0;
+		current_status->bytes_send = 0;
+	}
 }
 
 void ask_transmitter_t::_tx_interrupt_handler()

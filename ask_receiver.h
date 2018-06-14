@@ -1,11 +1,16 @@
 /*
-	Mbed OS ASK receiver version 1.0.3 2018-06-13 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.1.0 2018-06-14 by Santtu Nyman.
+	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
 		Simple ask receiver for Mbed OS.
 		The receiver can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.1.0 2018-06-14
+			Status member function added.
+			Forgotten debug feature removed.
+			Some unnecessary comments removed.
 		version 1.0.3 2018-06-13
 			Valid frequencies are now limited to 1000, 1250, 2500 and 3125.
 		version 1.0.2 2018-06-11
@@ -21,14 +26,14 @@
 #ifndef ASK_RECEIVER_H
 #define ASK_RECEIVER_H
 
-#define ASK_RECEIVER_VERSION_MAJOR 1
-#define ASK_RECEIVER_VERSION_MINOR 0
-#define ASK_RECEIVER_VERSION_PATCH 3
+#define ASK_TRANSMITTER_VERSION_MAJOR 1
+#define ASK_TRANSMITTER_VERSION_MINOR 1
+#define ASK_TRANSMITTER_VERSION_PATCH 0
 
 #define ASK_RECEIVER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_RECEIVER_VERSION_MAJOR << 16) | (ASK_RECEIVER_VERSION_MINOR << 8) | ASK_RECEIVER_VERSION_PATCH))
 
 #include "mbed.h"
-#include "CRC16.h"
+#include "ask_CRC16.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -47,6 +52,20 @@
 #define ASK_RECEIVER_RAMP_ADJUST ((ASK_RECEIVER_RAMP_INCREMENT / 2) - 1)
 #define ASK_RECEIVER_RAMP_INCREMENT_RETARD (ASK_RECEIVER_RAMP_INCREMENT - ASK_RECEIVER_RAMP_ADJUST)
 #define ASK_RECEIVER_RAMP_INCREMENT_ADVANCE (ASK_RECEIVER_RAMP_INCREMENT + ASK_RECEIVER_RAMP_ADJUST)
+
+typedef struct ask_receiver_status_t
+{
+	int rx_frequency;
+	PinName rx_pin;
+	uint8_t rx_address;
+	bool initialized;
+	bool active;
+	int packets_available;
+	size_t packets_received;
+	size_t packets_dropped;
+	size_t bytes_received;
+	size_t bytes_dropped;
+} ask_receiver_status_t;
 
 class ask_receiver_t
 {
@@ -124,11 +143,22 @@ class ask_receiver_t
 					Pointer to buffer that receives packest data.
 				message_buffer_length
 					Size of buffer pointed by message_data.
-					maximum size if packet is ASK_RECEIVER_MAXIMUM_MESSAGE_SIZE.
+					maximum size of packet is ASK_RECEIVER_MAXIMUM_MESSAGE_SIZE.
 					passing 0 value to this parameter makes it impossible to determine if packet was read, this may be undesired behavior.
 			Return
 				If function reads a packet it returns size of the packet truncated to size of callers buffer.
 				If no packet is read it returns 0.
+		*/
+
+		void status(ask_receiver_status_t* current_status);
+		/*
+			Description
+				Function queries the current status of the receiver.
+			Parameters
+				current_status
+					Pointer to variable that receives current stutus of the receiver.
+			Return
+				No return value.
 		*/
 
 	private :
@@ -139,7 +169,6 @@ class ask_receiver_t
 		void _erase_current_packet();
 		uint8_t _read_byte_from_buffer();
 		void _discard_bytes_from_buffer(size_t size);
-		//static uint16_t _crc_ccitt_update(uint16_t crc, uint8_t data); // JARNO
 
 		bool _is_initialized;
 		uint8_t _rx_address;
@@ -152,12 +181,16 @@ class ask_receiver_t
 		uint8_t _rx_ramp;
 		uint8_t _rx_integrator;
 		unsigned int _rx_bits;
-		uint8_t _rx_active;
+		volatile uint8_t _rx_active;
 		uint8_t _rx_bit_count;
 		uint8_t _packet_length;
 		uint8_t _packet_received;
 		uint16_t _packet_crc;
 		uint16_t _packet_received_crc;
+		volatile size_t _packets_received;
+		volatile size_t _packets_dropped;
+		volatile size_t _bytes_received;
+		volatile size_t _bytes_dropped;
 
 		// input ring buffer
 		volatile size_t _rx_buffer_read_index;
