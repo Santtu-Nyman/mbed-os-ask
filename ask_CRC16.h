@@ -1,64 +1,38 @@
 /* General purpose 16-bit CRC by Jarno Poikonen
    Great place for newbies to get a grasp on Cyclic Reduncancy Checks (CRCs), go read
    http://www.repairfaq.org/filipg/LINK/F_crc_v31.html
-   If I mention something about CRC model and its convention in this document, it is due to the
+   If something is mentioned about CRC model and its convention in this document, it is due to the
    material there. Also just googling up a few online CRC calculators and checking their
    javascript source for implementation, you will quickly see the same CRC model principals
-   every where. Therefore, this work is merely a port from existing solutions. CRCs are difficult
-   to roll by yourself. At least efficient CRCs are. */
+   everywhere. Therefore, this work is merely a port from existing solutions. CRCs are difficult
+   to roll by yourself. At least the so-called FAST_CRCs are. */
 #ifndef ASK_CRC16_H
 #define ASK_CRC16_H
 #include <stdint.h>
 
-/* There are 3 definitions on different methods to calculate a CRC:
-1) BITWISE: The calculation of CRC, bit by bit for a full 8-bit byte, on EVERY function call.
+/* This CRC implementation defines 3 different methods to calculate the 16-bit CRC for an 8-bit input data:
+   Those methods are called BITWISE, LOOKUP_TABLE, FAST_CRC.
 
-2) LOOKUP_TABLE: Precomputing all CRC values into a lookup table, and instead of calculating
-the CRC on every function call, it is just fetched from a lookup table. Using a lookup table
-consumes additional memory to hold the fetchable, precomputed values during runtime.
+BITWISE:      Calculates the 16-bit CRC bit by bit for 8-bit input data on every function call.
+              Sacrifices processing speed over memory consumption.
 
-3) FAST_CRC(for KERMIT algorithm only): An optimized method for one specific algorithm which is
-WAY FASTER than BITWISE or LOOKUP_TABLE -methods. Excessive memory consumption free. FAST_CRC 
-is the preferred calculation method, however finding or deriving such a method yourself - for
-more algorithms - requires extensive knowledge in CRC calculation, math and optimization 
-techniques.
+LOOKUP_TABLE: Precomputes all the 16-bit CRC combinations for any given 8-bit input byte. (256 combinations)
+              This is done in the constructor when the passed in calc_method is defined as LOOKUP_TABLE.
+              On function call, calculates the key to access the lookup_table for the actual 16-bit CRC. 
+              Sacrifices memory over processing speed.
 
-This header file knows only one such method, and was directly copied as is from the
-radiohead RHCRC.H/RHCRC.CPP files for "Amplitude Shift Keying" transmitter/reveicer.
+FAST_CRC:     Combines the good from both BITWISE and LOOKUP_TABLE, is way faster than either and consumes
+              no memory for things like lookup.
+              FAST_CRC works only on the so called KERMIT algorithm (polynomial: 0x1021) in this implementation.
 
-This method inherently follows the model of the KERMIT algorithm except since it is optimized, it
-doesn't follow the convention of the CRC model to the letter, but produces the same results for all
-inputs as if it were using the KERMIT algorithm of the CRC model.
-
-An example on the quirkiness of FAST_CRC compared to the CRC MODEL:
-Instead of starting with an init value of 0x0000 as the model for KERMIT algorithm would dictate,
-the FAST_CRC equivalent actually starts with 0xFFFF as the init value, this breaks the convention
-of the CRC model, but it yields the same results in the end. I suppose it is safe to assume that all
-FAST_CRCs algorithms differ in some regard compared to the model.
-
-So in case you are using the KERMIT algorithm, use FAST_CRC, otherwise use either BITWISE or
-LOOKUP_TABLE.
-
-In case you are using the next best thing due to not being able to use a FAST_CRC on your chosen algorithm, 
-use LOOKUP_TABLE -method, it is way faster than BITWISE, except it will consume 256*16 bits of memory
-for the lookup table.
-
-In case you wish to save memory and are willing to sacrifice cycles, then use BITWISE -method.
-
-Ideally it would be great to have a FAST_CRC implementation for every conceivable CRC model algorithm,
-and integrate them all into this header file (for 16 bit polynomials that is), but finding those,
-is not a priority at this time. Feel free to add some.
-
-4) SANDELS(for KERMIT algorithm only): Follows no model, is a homebrew method made by Santtu Nyman. Marginally faster than
-BITWISE or LOOKUP_TABLE -methods, consumes no extra memory. Is way slower than FAST_CRC, only works
-as KERMIT algorithm. Don't use SANDELS, since FAST_CRC is a 5x faster. 
-*/
+SANDELS:      Homebrew method made by Santtu Nyman. Marginally faster than BITWISE or LOOKUP_TABLE -methods, 
+              consumes no extra memory. Is way slower than FAST_CRC, only works
+              as KERMIT algorithm. Don't use SANDELS, since FAST_CRC is a 5x faster. */
 enum CALC_METHOD {BITWISE, LOOKUP_TABLE, FAST_CRC, SANDELS};
 
 class CRC16
 {
 public:
-  const char* name;
   uint16_t poly;
 	uint16_t init;
 	uint16_t xorout;
@@ -77,8 +51,7 @@ public:
   */
 
 	CRC16(){};
-	CRC16(const char* name,
-        const uint16_t poly, 
+	CRC16(const uint16_t poly, 
         const uint16_t init, 
         const uint16_t xorout, 
         const bool refin, 
