@@ -64,7 +64,7 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t tx_addres
 		if (_is_initialized)
 			_tx_timer.detach();
 
-		_kermit = CRC16("KERMIT", 0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
+		_kermit = CRC16(0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
 		_tx_address = tx_address;
 
 		// set transmitter initialization parameters

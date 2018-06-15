@@ -64,7 +64,7 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t rx_address)
 		if (_is_initialized)
 			_rx_timer.detach();
 
-		_kermit = CRC16("Kermit", 0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
+		_kermit = CRC16(0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
 		_rx_address = rx_address;
 
 		// set receiver initialization parameters
