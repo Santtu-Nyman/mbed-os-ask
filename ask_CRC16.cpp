@@ -3,20 +3,8 @@
 #include <cstring>
 #include <cstdlib>
 
-CRC16::CRC16(	const char* name, 
-							const uint16_t poly, 
-							const uint16_t init, 
-							const uint16_t xorout, 
-							const bool refin, 
-  						const bool refout, 
-  						CALC_METHOD calc_method) : 
-							name(name), 
-							poly(poly), 
-							init(init), 
-							xorout(xorout), 
-							refin(refin), 
-							refout(refout), 
-							calc_method(calc_method){	
+CRC16::CRC16(const uint16_t poly, const uint16_t init, const uint16_t xorout, const bool refin, const bool refout, CALC_METHOD calc_method) : 
+poly(poly), init(init), xorout(xorout), refin(refin), refout(refout), calc_method(calc_method){	
     generateLookupTable();
 }
 
