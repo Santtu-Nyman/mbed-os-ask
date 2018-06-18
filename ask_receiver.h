@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.1.0 2018-06-14 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.1.1 2018-06-18 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,8 @@
 		The receiver can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.1.1 2018-06-18
+			Receiver ignores packets that are not send to it.
 		version 1.1.0 2018-06-14
 			Status member function added.
 			Forgotten debug feature removed.
@@ -28,7 +30,7 @@
 
 #define ASK_TRANSMITTER_VERSION_MAJOR 1
 #define ASK_TRANSMITTER_VERSION_MINOR 1
-#define ASK_TRANSMITTER_VERSION_PATCH 0
+#define ASK_TRANSMITTER_VERSION_PATCH 1
 
 #define ASK_RECEIVER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_RECEIVER_VERSION_MAJOR << 16) | (ASK_RECEIVER_VERSION_MINOR << 8) | ASK_RECEIVER_VERSION_PATCH))
 

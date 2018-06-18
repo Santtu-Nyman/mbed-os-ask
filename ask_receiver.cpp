@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.1.0 2018-06-14 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.1.1 2018-06-18 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -239,6 +239,17 @@ void ask_receiver_t::_rx_interrupt_handler()
 					}
 					_ask_receiver->_packet_length = received_byte;
 				}
+				else if (_ask_receiver->_packet_received == 1)
+				{
+					// ignore the packets that are not send to this receiver
+					if (received_byte != ASK_RECEIVER_BROADCAST_ADDRESS && received_byte != _ask_receiver->_rx_address)
+					{
+						_ask_receiver->_rx_active = 0;
+						_ask_receiver->_erase_current_packet();
+						return;
+					}
+				}
+
 				_ask_receiver->_packet_received += 1;
 				if (_ask_receiver->_packet_received < _ask_receiver->_packet_length - 1)
 					_ask_receiver->_packet_crc = _ask_receiver->_kermit.fastCRC(_ask_receiver->_packet_crc, received_byte);// calculate crc for the packet while receiving it
