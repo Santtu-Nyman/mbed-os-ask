@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.1.1 2018-06-18 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.2.0 2018-07-04 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -19,10 +19,10 @@ ask_receiver_t::ask_receiver_t(int rx_frequency, PinName rx_pin)
 	init(rx_frequency, rx_pin);
 }
 
-ask_receiver_t::ask_receiver_t(int rx_frequency, PinName rx_pin, uint8_t rx_address)
+ask_receiver_t::ask_receiver_t(int rx_frequency, PinName rx_pin, uint8_t new_rx_address)
 {
 	_is_initialized = false;
-	init(rx_frequency, rx_pin, rx_address);
+	init(rx_frequency, rx_pin, new_rx_address);
 }
 
 ask_receiver_t::~ask_receiver_t()
@@ -39,7 +39,7 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin)
 	return init(rx_frequency, rx_pin, ASK_RECEIVER_BROADCAST_ADDRESS);
 }
 
-bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t rx_address)
+bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_address)
 {
 	static const int valid_frequencies[] = { 1000, 1250, 2500, 3125 };
 
@@ -65,7 +65,7 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t rx_address)
 			_rx_timer.detach();
 
 		_kermit = CRC16(0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
-		_rx_address = rx_address;
+		rx_address = new_rx_address;
 
 		// set receiver initialization parameters
 		_rx_frequency = rx_frequency;
@@ -148,7 +148,7 @@ void ask_receiver_t::status(ask_receiver_status_t* current_status)
 	{
 		current_status->rx_frequency = _rx_frequency;
 		current_status->rx_pin = _rx_pin_name;
-		current_status->rx_address = _rx_address;
+		current_status->rx_address = rx_address;
 		current_status->initialized = true;
 		if (_rx_active)
 			current_status->active = true;
@@ -242,7 +242,7 @@ void ask_receiver_t::_rx_interrupt_handler()
 				else if (_ask_receiver->_packet_received == 1)
 				{
 					// ignore the packets that are not send to this receiver
-					if (received_byte != ASK_RECEIVER_BROADCAST_ADDRESS && received_byte != _ask_receiver->_rx_address)
+					if (received_byte != ASK_RECEIVER_BROADCAST_ADDRESS && received_byte != _ask_receiver->rx_address)
 					{
 						_ask_receiver->_rx_active = 0;
 						_ask_receiver->_erase_current_packet();

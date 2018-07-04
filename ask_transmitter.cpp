@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK transmitter version 1.1.0 2018-06-14 by Santtu Nyman.
+	Mbed OS ASK transmitter version 1.2.0 2018-07-04 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -19,10 +19,10 @@ ask_transmitter_t::ask_transmitter_t(int tx_frequency, PinName tx_pin)
 	init(tx_frequency, tx_pin);
 }
 
-ask_transmitter_t::ask_transmitter_t(int tx_frequency, PinName tx_pin, uint8_t tx_address)
+ask_transmitter_t::ask_transmitter_t(int tx_frequency, PinName tx_pin, uint8_t new_tx_address)
 {
 	_is_initialized = false;
-	init(tx_frequency, tx_pin, tx_address);
+	init(tx_frequency, tx_pin, new_tx_address);
 }
 
 ask_transmitter_t::~ask_transmitter_t()
@@ -39,7 +39,7 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin)
 	return init(tx_frequency, tx_pin, ASK_TRANSMITTER_BROADCAST_ADDRESS);
 }
 
-bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t tx_address)
+bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t new_tx_address)
 {
 	static const int valid_frequencies[] = { 1000, 1250, 2500, 3125 };
 
@@ -65,7 +65,7 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t tx_addres
 			_tx_timer.detach();
 
 		_kermit = CRC16(0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
-		_tx_address = tx_address;
+		tx_address = new_tx_address;
 
 		// set transmitter initialization parameters
 		_tx_frequency = tx_frequency;
@@ -99,7 +99,7 @@ bool ask_transmitter_t::send(uint8_t rx_address, const void* message_data, size_
 
 	// the data after the start symbol begins with length of the packet, header rx address, header tx address, header id, header flags
 	// lenght of the packet is (1 byte lenght + 1 byte rx address + 1 byte tx ddress + 1 byte id + 1 byte flags + n bytes message + 2 bytes crc)
-	uint8_t length_and_header[5] = { (uint8_t)(7 + message_byte_length), rx_address, _tx_address, 0, 0, };
+	uint8_t length_and_header[5] = { (uint8_t)(7 + message_byte_length), rx_address, tx_address, 0, 0, };
 
 	// crc init is 0xFFFF
 	uint16_t crc = 0xFFFF;
@@ -159,7 +159,7 @@ void ask_transmitter_t::status(ask_transmitter_status_t* current_status)
 	{
 		current_status->tx_frequency = _tx_frequency;
 		current_status->tx_pin = _tx_pin_name;
-		current_status->tx_address = _tx_address;
+		current_status->tx_address = tx_address;
 		current_status->initialized = true;
 		if (_tx_buffer_read_index != _tx_buffer_write_index || _tx_output_symbol_bit_index)
 			current_status->active = true;

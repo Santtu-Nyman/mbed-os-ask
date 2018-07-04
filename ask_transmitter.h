@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK transmitter version 1.1.0 2018-06-14 by Santtu Nyman.
+	Mbed OS ASK transmitter version 1.2.0 2018-07-04 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,8 @@
 		The transmitter can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.2.0 2018-07-04
+			tx_address member variable added.
 		version 1.1.0 2018-06-14
 			Status member function added.
 			Some unnecessary comments removed.
@@ -41,7 +43,7 @@
 #define ASK_TRANSMITTER_H
 
 #define ASK_TRANSMITTER_VERSION_MAJOR 1
-#define ASK_TRANSMITTER_VERSION_MINOR 1
+#define ASK_TRANSMITTER_VERSION_MINOR 2
 #define ASK_TRANSMITTER_VERSION_PATCH 0
 
 #define ASK_TRANSMITTER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_TRANSMITTER_VERSION_MAJOR << 16) | (ASK_TRANSMITTER_VERSION_MINOR << 8) | ASK_TRANSMITTER_VERSION_PATCH))
@@ -74,7 +76,7 @@ class ask_transmitter_t
 		ask_transmitter_t();
 		
 		ask_transmitter_t(int tx_frequency, PinName tx_pin);
-		ask_transmitter_t(int tx_frequency, PinName tx_pin, uint8_t tx_address);
+		ask_transmitter_t(int tx_frequency, PinName tx_pin, uint8_t new_tx_address);
 		// These constructors call init with same parameters.
 		
 		~ask_transmitter_t();
@@ -85,6 +87,7 @@ class ask_transmitter_t
 				Initializes the transmitter object with given parameters. If the transmitter is already initialized it is reinitialized with the new parameters.
 				The tx address of the transmitter is set to ASK_TRANSMITTER_BROADCAST_ADDRESS.
 				This function fails if an initialized transmitter already exists.
+				Value of tx_address is set to the new tx address.
 			Parameters
 				tx_frequency
 					The frequency of the transmitter. This value is required to be valid frequency, or the function fails.
@@ -95,18 +98,19 @@ class ask_transmitter_t
 				If the function succeeds, the return value is true and false on failure.
 		*/
 		
-		bool init(int tx_frequency, PinName tx_pin, uint8_t tx_address);
+		bool init(int tx_frequency, PinName tx_pin, uint8_t new_tx_address);
 		/*
 			Description
 				Initializes the transmitter object with given parameters. If the transmitter is already initialized it is reinitialized with the new parameters.
 				This function fails if an initialized transmitter already exists.
+				Value of tx_address is set to the new tx address.
 			Parameters
 				tx_frequency
 					The frequency of the transmitter. This value is required to be valid frequency, or the function fails.
 					Valid frequencies are 1000, 1250, 2500 and 3125.
 				tx_pin
 					Mbed OS pin name for tx pin.
-				tx_address
+				new_tx_address
 					tx address for the transmitter.
 			Return
 				If the function succeeds, the return value is true and false on failure.
@@ -158,6 +162,9 @@ class ask_transmitter_t
 				No return value.
 		*/
 
+		volatile uint8_t tx_address;
+		// Value of tx_address specifies address of the transmitter.
+
 	private :
 		static void _tx_interrupt_handler();
 		static uint8_t _high_nibble(uint8_t byte);
@@ -169,7 +176,6 @@ class ask_transmitter_t
 
 		bool _is_initialized;
 		CRC16 _kermit;
-		uint8_t _tx_address;
 		gpio_t _tx_pin;
 		size_t _packets_send;
 		size_t _bytes_send;

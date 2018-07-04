@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.1.1 2018-06-18 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.2.0 2018-07-04 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,8 @@
 		The receiver can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.2.0 2018-07-04
+			rx_address member variable added.
 		version 1.1.1 2018-06-18
 			Receiver ignores packets that are not send to it.
 		version 1.1.0 2018-06-14
@@ -28,9 +30,9 @@
 #ifndef ASK_RECEIVER_H
 #define ASK_RECEIVER_H
 
-#define ASK_TRANSMITTER_VERSION_MAJOR 1
-#define ASK_TRANSMITTER_VERSION_MINOR 1
-#define ASK_TRANSMITTER_VERSION_PATCH 1
+#define ASK_RECEIVER_VERSION_MAJOR 1
+#define ASK_RECEIVER_VERSION_MINOR 2
+#define ASK_RECEIVER_VERSION_PATCH 0
 
 #define ASK_RECEIVER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_RECEIVER_VERSION_MAJOR << 16) | (ASK_RECEIVER_VERSION_MINOR << 8) | ASK_RECEIVER_VERSION_PATCH))
 
@@ -74,7 +76,7 @@ class ask_receiver_t
 	public :
 		ask_receiver_t();
 		ask_receiver_t(int rx_frequency, PinName rx_pin);
-		ask_receiver_t(int rx_frequency, PinName rx_pin, uint8_t rx_address);
+		ask_receiver_t(int rx_frequency, PinName rx_pin, uint8_t new_rx_address);
 		// These constructors call init with same parameters.
 
 		~ask_receiver_t();
@@ -85,6 +87,7 @@ class ask_receiver_t
 				Re/initializes the receiver object with given parameters.
 				Re/initializing receiver object will fail if initialized receiver object already exists.
 				The rx address of the receiver is set to ASK_RECEIVER_BROADCAST_ADDRESS.
+				Value of rx_address is set to the new rx address.
 			Parameters
 				rx_frequency
 					The frequency of the receiver. This value is required to be valid frequency, or the function fails.
@@ -95,18 +98,19 @@ class ask_receiver_t
 				If the function succeeds, the return value is true and false on failure.
 		*/
 
-		bool init(int rx_frequency, PinName rx_pin, uint8_t rx_address);
+		bool init(int rx_frequency, PinName rx_pin, uint8_t new_rx_address);
 		/*
 			Description
 				Re/initializes the receiver object with given parameters.
 				Re/initializing receiver object will fail if initialized receiver object already exists.
+				Value of rx_address is set to the new rx address.
 			Parameters
 				rx_frequency
 					The frequency of the receiver. This value is required to be valid frequency, or the function fails.
 					Valid frequencies are 1000, 1250, 2500 and 3125.
 				rx_pin
 					Mbed OS pin name for rx pin.
-				rx_address
+				new_rx_address
 					rx address for the receiver.
 			Return
 				If the function succeeds, the return value is true and false on failure.
@@ -163,6 +167,9 @@ class ask_receiver_t
 				No return value.
 		*/
 
+		volatile uint8_t rx_address;
+		// Value of rx_address specifies address of the receiver.
+
 	private :
 		static void _rx_interrupt_handler();
 		static uint8_t _decode_symbol(uint8_t _6bit_symbol);
@@ -173,7 +180,6 @@ class ask_receiver_t
 		void _discard_bytes_from_buffer(size_t size);
 
 		bool _is_initialized;
-		uint8_t _rx_address;
 		CRC16 _kermit;
 		gpio_t _rx_pin;
 		Ticker _rx_timer;
