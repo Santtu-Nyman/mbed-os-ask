@@ -176,6 +176,7 @@ class ask_transmitter_t
 
 		bool _is_initialized;
 		CRC16 _kermit;
+		PinDirection _tx_pin_direction;
 		gpio_t _tx_pin;
 		size_t _packets_send;
 		size_t _bytes_send;

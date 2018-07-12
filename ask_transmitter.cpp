@@ -82,7 +82,14 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t new_tx_ad
 		_is_initialized = true;
 
 		// init tx output pin
-		gpio_init_out_ex(&_tx_pin, _tx_pin_name, 0);
+
+		//gpio_init_out_ex(&_tx_pin, _tx_pin_name, 0);
+
+		gpio_init_in(&_tx_pin, _tx_pin_name);
+		_tx_pin_direction = PIN_OUTPUT;
+		core_util_critical_section_enter();
+		gpio_dir(&_tx_pin, _tx_pin_direction);
+		core_util_critical_section_exit();
 		
 		// attach the interrupt handler
 		_tx_timer.attach(&_tx_interrupt_handler, 1.0f / (float)tx_frequency);
@@ -185,7 +192,28 @@ void ask_transmitter_t::_tx_interrupt_handler()
 	// read next byte if !symbol_bit_index and if no data to send return from this function
 	uint8_t symbol_bit_index = _ask_transmitter->_tx_output_symbol_bit_index;
 	if (!symbol_bit_index && !_ask_transmitter->_read_byte_from_buffer(&_ask_transmitter->_tx_output_symbol))
+	{
+		if (_ask_transmitter->_tx_pin_direction != PIN_INPUT)
+		{
+			_ask_transmitter->_tx_pin_direction = PIN_INPUT;
+
+			// really bad stuff here
+			core_util_critical_section_enter();
+			gpio_dir(&_ask_transmitter->_tx_pin, _ask_transmitter->_tx_pin_direction);
+			core_util_critical_section_exit();
+		}
 		return;
+	}
+
+	if (_ask_transmitter->_tx_pin_direction != PIN_OUTPUT)
+	{
+		_ask_transmitter->_tx_pin_direction = PIN_OUTPUT;
+
+		// more really bad stuff here
+		core_util_critical_section_enter();
+		gpio_dir(&_ask_transmitter->_tx_pin, _ask_transmitter->_tx_pin_direction);
+		core_util_critical_section_exit();
+	}
 
 	// send next bit if there is more data to send.
 	
