@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.3.1 2018-07-13 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.3.2 2018-07-13 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,8 @@
 		The receiver can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.3.2 2018-07-13
+			recv member function behavior improved.
 		version 1.3.1 2018-07-13
 			Receiver initialization behavior improved.
 		version 1.3.0 2018-07-13
@@ -36,7 +38,7 @@
 
 #define ASK_RECEIVER_VERSION_MAJOR 1
 #define ASK_RECEIVER_VERSION_MINOR 3
-#define ASK_RECEIVER_VERSION_PATCH 1
+#define ASK_RECEIVER_VERSION_PATCH 2
 
 #define ASK_RECEIVER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_RECEIVER_VERSION_MAJOR << 16) | (ASK_RECEIVER_VERSION_MINOR << 8) | ASK_RECEIVER_VERSION_PATCH))
 
@@ -156,6 +158,29 @@ class ask_receiver_t
 				The receiver does not receive any packets if it is not initialized.
 				If the packet is longer than the size of caller's buffer, this function truncates the packet by message_buffer_length parameter.
 			Parameters
+				tx_address
+					Pointer to variable that receives address of the transmitter.
+				message_buffer
+					Pointer to buffer that receives packest data.
+				message_buffer_length
+					Size of buffer pointed by message_data.
+					maximum size of packet is ASK_RECEIVER_MAXIMUM_MESSAGE_SIZE.
+					passing 0 value to this parameter makes it impossible to determine if packet was read, this may be undesired behavior.
+			Return
+				If function reads a packet it returns size of the packet truncated to size of callers buffer.
+				If no packet is read it returns 0.
+		*/
+
+		size_t recv(uint8_t* rx_address, uint8_t* tx_address, void* message_buffer, size_t message_buffer_length);
+		/*
+			Description
+				Function Reads packet from receiver's buffer if there are any available packets, if not function returns 0.
+				Receiver's interrupt handler writes packets that it receives to receiver's buffer.
+				The receiver does not receive any packets if it is not initialized.
+				If the packet is longer than the size of caller's buffer, this function truncates the packet by message_buffer_length parameter.
+			Parameters
+				tx_address
+					Pointer to variable that receives address of the receiver.
 				tx_address
 					Pointer to variable that receives address of the transmitter.
 				message_buffer

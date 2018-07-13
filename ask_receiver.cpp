@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.3.1 2018-07-13 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.3.2 2018-07-13 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -119,11 +119,17 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_addre
 
 size_t ask_receiver_t::recv(void* message_buffer, size_t message_buffer_length)
 {
-	uint8_t ingnored;
-	return recv(&ingnored, message_buffer, message_buffer_length);
+	uint8_t ingnored[2];
+	return recv(&ingnored[0], &ingnored[1], message_buffer, message_buffer_length);
 }
 
 size_t ask_receiver_t::recv(uint8_t* tx_address, void* message_buffer, size_t message_buffer_length)
+{
+	uint8_t ingnored;
+	return recv(&ingnored, tx_address, message_buffer, message_buffer_length);
+}
+
+size_t ask_receiver_t::recv(uint8_t* rx_address, uint8_t* tx_address, void* message_buffer, size_t message_buffer_length)
 {
 	if (_packets_available)
 	{
@@ -140,8 +146,8 @@ size_t ask_receiver_t::recv(uint8_t* tx_address, void* message_buffer, size_t me
 			message_lenght -= message_truncate;
 		}
 
-		// discard header to part it is already validated by the interrupt handler
-		_discard_bytes_from_buffer(1);
+		// read header to part
+		*rx_address = _read_byte_from_buffer();
 
 		// read header from part
 		*tx_address = _read_byte_from_buffer();
@@ -150,7 +156,7 @@ size_t ask_receiver_t::recv(uint8_t* tx_address, void* message_buffer, size_t me
 		_discard_bytes_from_buffer(2);
 
 		// read message data to  buffer given by caller
-		for (uint8_t* i = (uint8_t*)message_buffer, * e = i + message_lenght; i != e; ++i)
+		for (uint8_t* i = (uint8_t*)message_buffer, *e = i + message_lenght; i != e; ++i)
 			*i = _read_byte_from_buffer();
 
 		// discard truncated message data and the crc it is already validated by the interrupt handler
