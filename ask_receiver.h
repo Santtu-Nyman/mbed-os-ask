@@ -8,7 +8,7 @@
 
 	Version history
 		version 1.3.0 2018-07-13
-			rx_entropy member variable added.
+			rx_entropy member variable and is_valid_frequency member function added.
 		version 1.2.0 2018-07-04
 			rx_address member variable added.
 		version 1.1.1 2018-06-18
@@ -170,6 +170,19 @@ class ask_receiver_t
 					Pointer to variable that receives current stutus of the receiver.
 			Return
 				No return value.
+		*/
+
+		static bool is_valid_frequency(int frequency);
+		/*
+			Description
+				Function test if given frequency is valid for receiver.
+				Valid frequencies are listed on documentation of init function.
+				This function does not require initialized receiver.
+			Parameters
+				frequency
+					Value of frequency specifies the frequency that is tested.
+			Return
+				returns true if given frequency is valid for receiver, else return value is false.
 		*/
 
 		volatile uint8_t rx_address;

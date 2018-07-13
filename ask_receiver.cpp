@@ -41,16 +41,8 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin)
 
 bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_address)
 {
-	static const int valid_frequencies[] = { 1000, 1250, 2500, 3125 };
-
-	// search valid frequency list for the value of frequency parameter
-	bool invalid_frequency = true;
-	for (int i = 0, e = sizeof(valid_frequencies) / sizeof(int); invalid_frequency && i != e; ++i)
-		if (rx_frequency == valid_frequencies[i])
-			invalid_frequency = false;
-
 	// fail init if invalid frequency
-	if (invalid_frequency)
+	if (!is_valid_frequency(rx_frequency))
 		return false;
 
 	// only one receiver is allowed this one receiver is pointed by _ask_receiver
@@ -185,6 +177,19 @@ void ask_receiver_t::status(ask_receiver_status_t* current_status)
 		current_status->bytes_dropped = 0;
 		current_status->rx_entropy = ASK_RECEIVER_RX_ENTROPY_INITIALIZATION_VALUE;
 	}
+}
+
+bool ask_receiver_t::is_valid_frequency(int frequency)
+{
+	static const int valid_frequencies[] = { 1000, 1250, 2500, 3125 };
+
+	// search valid frequency list for the value of frequency parameter
+	bool valid_frequency = false;
+	for (int i = 0, e = sizeof(valid_frequencies) / sizeof(int); !valid_frequency && i != e; ++i)
+		if (rx_frequency == valid_frequencies[i])
+			valid_frequency = true;
+
+	return valid_frequency;
 }
 
 void ask_receiver_t::_rx_interrupt_handler()

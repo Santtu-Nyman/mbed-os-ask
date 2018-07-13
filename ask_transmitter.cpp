@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK transmitter version 1.2.0 2018-07-04 by Santtu Nyman.
+	Mbed OS ASK transmitter version version 1.3.0 2018-07-13 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -41,16 +41,8 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin)
 
 bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t new_tx_address)
 {
-	static const int valid_frequencies[] = { 1000, 1250, 2500, 3125 };
-
-	// search valid frequency list for the value of frequency parameter
-	bool invalid_frequency = true;
-	for (int i = 0, e = sizeof(valid_frequencies) / sizeof(int); invalid_frequency && i != e; ++i)
-		if (tx_frequency == valid_frequencies[i])
-			invalid_frequency = false;
-
 	// fail init if invalid frequency
-	if (invalid_frequency)
+	if (!is_valid_frequency(tx_frequency))
 		return false;
 
 	// only one transmitter is allowed after version 0.2.0 for simpler implementation this one transmitter is pointed by _ask_transmitter
@@ -185,6 +177,19 @@ void ask_transmitter_t::status(ask_transmitter_status_t* current_status)
 		current_status->packets_send = 0;
 		current_status->bytes_send = 0;
 	}
+}
+
+bool ask_transmitter_t::is_valid_frequency(int frequency)
+{
+	static const int valid_frequencies[] = { 1000, 1250, 2500, 3125 };
+
+	// search valid frequency list for the value of frequency parameter
+	bool valid_frequency = false;
+	for (int i = 0, e = sizeof(valid_frequencies) / sizeof(int); !valid_frequency && i != e; ++i)
+		if (rx_frequency == valid_frequencies[i])
+			valid_frequency = true;
+
+	return valid_frequency;
 }
 
 void ask_transmitter_t::_tx_interrupt_handler()
