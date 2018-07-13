@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.2.0 2018-07-04 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.3.0 2018-07-13 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,8 @@
 		The receiver can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.3.0 2018-07-13
+			rx_entropy member variable added.
 		version 1.2.0 2018-07-04
 			rx_address member variable added.
 		version 1.1.1 2018-06-18
@@ -31,7 +33,7 @@
 #define ASK_RECEIVER_H
 
 #define ASK_RECEIVER_VERSION_MAJOR 1
-#define ASK_RECEIVER_VERSION_MINOR 2
+#define ASK_RECEIVER_VERSION_MINOR 3
 #define ASK_RECEIVER_VERSION_PATCH 0
 
 #define ASK_RECEIVER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_RECEIVER_VERSION_MAJOR << 16) | (ASK_RECEIVER_VERSION_MINOR << 8) | ASK_RECEIVER_VERSION_PATCH))
@@ -57,6 +59,8 @@
 #define ASK_RECEIVER_RAMP_INCREMENT_RETARD (ASK_RECEIVER_RAMP_INCREMENT - ASK_RECEIVER_RAMP_ADJUST)
 #define ASK_RECEIVER_RAMP_INCREMENT_ADVANCE (ASK_RECEIVER_RAMP_INCREMENT + ASK_RECEIVER_RAMP_ADJUST)
 
+#define ASK_RECEIVER_RX_ENTROPY_INITIALIZATION_VALUE 0x004E5353
+
 typedef struct ask_receiver_status_t
 {
 	int rx_frequency;
@@ -69,6 +73,7 @@ typedef struct ask_receiver_status_t
 	size_t packets_dropped;
 	size_t bytes_received;
 	size_t bytes_dropped;
+	uint32_t rx_entropy;
 } ask_receiver_status_t;
 
 class ask_receiver_t
@@ -170,6 +175,10 @@ class ask_receiver_t
 		volatile uint8_t rx_address;
 		// Value of rx_address specifies address of the receiver.
 
+		volatile uint32_t rx_entropy;
+		// Value of rx_entropy is mix of all samples that the receiver reads from rx pin.
+		// This variable is updated rx_frequency * ASK_RECEIVER_SAMPLERS_PER_BIT times every second by the Receiver's interrupt handler, while the receiver initialized.
+
 	private :
 		static void _rx_interrupt_handler();
 		static uint8_t _decode_symbol(uint8_t _6bit_symbol);
@@ -190,6 +199,8 @@ class ask_receiver_t
 		uint8_t _rx_integrator;
 		unsigned int _rx_bits;
 		volatile uint8_t _rx_active;
+		uint8_t _rx_entropy_input_bit_count;
+		uint32_t _rx_entropy_input;
 		uint8_t _rx_bit_count;
 		uint8_t _packet_length;
 		uint8_t _packet_received;

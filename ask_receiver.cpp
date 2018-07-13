@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.2.0 2018-07-04 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.3.0 2018-07-13 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -77,6 +77,16 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_addre
 		_rx_integrator = 0;
 		_rx_bits = 0;
 		_rx_active = 0;
+
+		// if reinitializing do not reinitialize rx entropy
+		if (!_is_initialized)
+		{
+			// init rx entropy source
+			_rx_entropy_input_bit_count = 0;
+			_rx_entropy_input = 0;
+			rx_entropy = ASK_RECEIVER_RX_ENTROPY_INITIALIZATION_VALUE;
+		}
+
 		_packets_received = 0;
 		_packets_dropped = 0;
 		_bytes_received = 0;
@@ -159,6 +169,7 @@ void ask_receiver_t::status(ask_receiver_status_t* current_status)
 		current_status->packets_dropped = _packets_dropped;
 		current_status->bytes_received = _bytes_received;
 		current_status->bytes_dropped = _bytes_dropped;
+		current_status->rx_entropy = rx_entropy;
 	}
 	else
 	{
@@ -172,12 +183,24 @@ void ask_receiver_t::status(ask_receiver_status_t* current_status)
 		current_status->packets_dropped = 0;
 		current_status->bytes_received = 0;
 		current_status->bytes_dropped = 0;
+		current_status->rx_entropy = ASK_RECEIVER_RX_ENTROPY_INITIALIZATION_VALUE;
 	}
 }
 
 void ask_receiver_t::_rx_interrupt_handler()
 {
 	uint8_t rx_sample = (uint8_t)gpio_read(&_ask_receiver->_rx_pin);
+
+	// entropy input bits are shifted left and next bit is append to the front
+	_ask_receiver->_rx_entropy_input = (_ask_receiver->_rx_entropy_input << 1) | (uint32_t)rx_sample;
+	_ask_receiver->_rx_entropy_input_bit_count++;
+	if (_ask_receiver->_rx_entropy_input_bit_count == 32)
+	{
+		// rx entropy is rotated right, xord with new entropy input bits and incremented
+		// this way of mixing entropy input bits may not be optimal
+		_ask_receiver->rx_entropy = (((_ask_receiver->rx_entropy << 31) | (_ask_receiver->rx_entropy >> 1)) ^ _ask_receiver->_rx_entropy_input) + 1;
+		_ask_receiver->_rx_entropy_input_bit_count = 0;
+	}
 
 	// sum all samples till ramp reaches ASK_RECEIVER_RAMP_LENGTH
 	_ask_receiver->_rx_integrator += rx_sample;
