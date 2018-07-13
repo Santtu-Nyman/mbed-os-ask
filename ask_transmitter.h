@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK transmitter version version 1.3.0 2018-07-13 by Santtu Nyman.
+	Mbed OS ASK transmitter version version 1.3.1 2018-07-13 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,8 @@
 		The transmitter can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.3.1 2018-07-13
+			Transmitter initialization behavior improved.
 		version 1.3.0 2018-07-13
 			is_valid_frequency member function added.
 		version 1.2.0 2018-07-04
@@ -46,7 +48,7 @@
 
 #define ASK_TRANSMITTER_VERSION_MAJOR 1
 #define ASK_TRANSMITTER_VERSION_MINOR 3
-#define ASK_TRANSMITTER_VERSION_PATCH 0
+#define ASK_TRANSMITTER_VERSION_PATCH 1
 
 #define ASK_TRANSMITTER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_TRANSMITTER_VERSION_MAJOR << 16) | (ASK_TRANSMITTER_VERSION_MINOR << 8) | ASK_TRANSMITTER_VERSION_PATCH))
 
@@ -92,8 +94,11 @@ class ask_transmitter_t
 				Value of tx_address is set to the new tx address.
 			Parameters
 				tx_frequency
-					The frequency of the transmitter. This value is required to be valid frequency, or the function fails.
+					The frequency of the transmitter. This value is required to be valid frequency or 0, or the function fails.
 					Valid frequencies are 1000, 1250, 2500 and 3125.
+					If this parameter is 0 and the transmitter is initialized it will shutdown.
+					If this parameter is 0 and the transmitter is not initialized it will not be initialized.
+					The transmitter is not initialized after it is shutdown.
 				tx_pin
 					Mbed OS pin name for tx pin.
 			Return
@@ -108,8 +113,12 @@ class ask_transmitter_t
 				Value of tx_address is set to the new tx address.
 			Parameters
 				tx_frequency
-					The frequency of the transmitter. This value is required to be valid frequency, or the function fails.
+					The frequency of the transmitter. This value is required to be valid frequency or 0, or the function fails.
 					Valid frequencies are 1000, 1250, 2500 and 3125.
+					If this parameter is 0 and the transmitter is initialized it will shutdown.
+					If this parameter is 0 and the transmitter is not initialized it will not be initialized.
+					The transmitter is not initialized after it is shutdown.
+
 				tx_pin
 					Mbed OS pin name for tx pin.
 				new_tx_address
@@ -191,7 +200,6 @@ class ask_transmitter_t
 
 		bool _is_initialized;
 		CRC16 _kermit;
-		PinDirection _tx_pin_direction;
 		gpio_t _tx_pin;
 		size_t _packets_send;
 		size_t _bytes_send;
@@ -209,6 +217,9 @@ class ask_transmitter_t
 		// No copying object of this type!
 		ask_transmitter_t(const ask_transmitter_t&);
 		ask_transmitter_t& operator=(const ask_transmitter_t&);
+
+		// NOTE: this variable is temporal testing thing that need to be removed leter.
+		PinDirection _tx_pin_direction;
 };
 
 #endif

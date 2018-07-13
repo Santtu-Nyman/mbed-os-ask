@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.3.0 2018-07-13 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.3.1 2018-07-13 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,8 @@
 		The receiver can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.3.1 2018-07-13
+			Receiver initialization behavior improved.
 		version 1.3.0 2018-07-13
 			rx_entropy member variable and is_valid_frequency member function added.
 		version 1.2.0 2018-07-04
@@ -34,7 +36,7 @@
 
 #define ASK_RECEIVER_VERSION_MAJOR 1
 #define ASK_RECEIVER_VERSION_MINOR 3
-#define ASK_RECEIVER_VERSION_PATCH 0
+#define ASK_RECEIVER_VERSION_PATCH 1
 
 #define ASK_RECEIVER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_RECEIVER_VERSION_MAJOR << 16) | (ASK_RECEIVER_VERSION_MINOR << 8) | ASK_RECEIVER_VERSION_PATCH))
 
@@ -95,8 +97,11 @@ class ask_receiver_t
 				Value of rx_address is set to the new rx address.
 			Parameters
 				rx_frequency
-					The frequency of the receiver. This value is required to be valid frequency, or the function fails.
+					The frequency of the receiver. This value is required to be valid frequency or 0, or the function fails.
 					Valid frequencies are 1000, 1250, 2500 and 3125.
+					If this parameter is 0 and the receiver is initialized it will shutdown.
+					If this parameter is 0 and the receiver is not initialized it will not be initialized.
+					The receiver is not initialized after it is shutdown.
 				rx_pin
 					Mbed OS pin name for rx pin.
 			Return
@@ -105,14 +110,17 @@ class ask_receiver_t
 
 		bool init(int rx_frequency, PinName rx_pin, uint8_t new_rx_address);
 		/*
-			Description
+			Descriptions
 				Re/initializes the receiver object with given parameters.
 				Re/initializing receiver object will fail if initialized receiver object already exists.
 				Value of rx_address is set to the new rx address.
 			Parameters
 				rx_frequency
-					The frequency of the receiver. This value is required to be valid frequency, or the function fails.
+					The frequency of the receiver. This value is required to be valid frequency or 0, or the function fails.
 					Valid frequencies are 1000, 1250, 2500 and 3125.
+					If this parameter is 0 and the receiver is initialized it will shutdown.
+					If this parameter is 0 and the receiver is not initialized it will not initialize.
+					The receiver is not initialized after it is shutdown.
 				rx_pin
 					Mbed OS pin name for rx pin.
 				new_rx_address

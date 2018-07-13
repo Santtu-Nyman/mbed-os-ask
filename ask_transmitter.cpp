@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK transmitter version version 1.3.0 2018-07-13 by Santtu Nyman.
+	Mbed OS ASK transmitter version version 1.3.1 2018-07-13 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -27,11 +27,7 @@ ask_transmitter_t::ask_transmitter_t(int tx_frequency, PinName tx_pin, uint8_t n
 
 ask_transmitter_t::~ask_transmitter_t()
 {
-	if (_is_initialized)
-	{
-		_tx_timer.detach();
-		_ask_transmitter = 0;
-	}
+	init(0, NC, ASK_TRANSMITTER_BROADCAST_ADDRESS);
 }
 
 bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin)
@@ -41,6 +37,36 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin)
 
 bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t new_tx_address)
 {
+	// NOTE: this function has temporal testing features that need to be removed leter.
+
+	// shutdown if tx_frequency is 0
+	if (!tx_frequency)
+	{
+		// if transmitter is initialized detach the interrupt handler and disconnect tx pin
+		if (_is_initialized)
+		{
+			// test version
+			_tx_timer.detach();
+			core_util_critical_section_enter();
+			gpio_dir(&_tx_pin, PIN_INPUT);
+			core_util_critical_section_exit();
+			gpio_init_inout(&_tx_pin, NC, PIN_INPUT, PullNone, 0);
+			_is_initialized = false;
+
+			// real version
+			/*
+			_tx_timer.detach();
+			gpio_init_out_ex(&_tx_pin, NC, 0);
+			_is_initialized = false;
+			*/
+		}
+		return true;
+	}
+
+	// fail tx pin is not connected
+	if (tx_pin == NC)
+		return false;
+
 	// fail init if invalid frequency
 	if (!is_valid_frequency(tx_frequency))
 		return false;
@@ -52,9 +78,22 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t new_tx_ad
 	// this must be THE transmitter
 	if (this == _ask_transmitter)
 	{
-		// if reinitializing detach the interrupt handler
+		// if reinitializing detach the interrupt handler and disconnect tx pin
 		if (_is_initialized)
+		{
+			// test version
 			_tx_timer.detach();
+			core_util_critical_section_enter();
+			gpio_dir(&_tx_pin, PIN_INPUT);
+			core_util_critical_section_exit();
+			gpio_init_inout(&_tx_pin, NC, PIN_INPUT, PullNone, 0);
+
+			// real version
+			/*
+			_tx_timer.detach();
+			gpio_init_out_ex(&_tx_pin, NC, 0);
+			*/
+		}
 
 		_kermit = CRC16(0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
 		tx_address = new_tx_address;
@@ -75,13 +114,12 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t new_tx_ad
 
 		// init tx output pin
 
-		//gpio_init_out_ex(&_tx_pin, _tx_pin_name, 0);
+		// test version
+		_tx_pin_direction = PIN_INPUT;
+		gpio_init_inout(&_tx_pin, _tx_pin_name, _tx_pin_direction, PullNone, 0);
 
-		gpio_init_in(&_tx_pin, _tx_pin_name);
-		_tx_pin_direction = PIN_OUTPUT;
-		core_util_critical_section_enter();
-		gpio_dir(&_tx_pin, _tx_pin_direction);
-		core_util_critical_section_exit();
+		// real version
+		// gpio_init_out_ex(&_tx_pin, _tx_pin_name, 0);
 		
 		// attach the interrupt handler
 		_tx_timer.attach(&_tx_interrupt_handler, 1.0f / (float)tx_frequency);
@@ -186,7 +224,7 @@ bool ask_transmitter_t::is_valid_frequency(int frequency)
 	// search valid frequency list for the value of frequency parameter
 	bool valid_frequency = false;
 	for (int i = 0, e = sizeof(valid_frequencies) / sizeof(int); !valid_frequency && i != e; ++i)
-		if (rx_frequency == valid_frequencies[i])
+		if (frequency == valid_frequencies[i])
 			valid_frequency = true;
 
 	return valid_frequency;
@@ -194,27 +232,30 @@ bool ask_transmitter_t::is_valid_frequency(int frequency)
 
 void ask_transmitter_t::_tx_interrupt_handler()
 {
+	// NOTE: this function has temporal testing features that need to be removed leter.
+
 	// read next byte if !symbol_bit_index and if no data to send return from this function
 	uint8_t symbol_bit_index = _ask_transmitter->_tx_output_symbol_bit_index;
 	if (!symbol_bit_index && !_ask_transmitter->_read_byte_from_buffer(&_ask_transmitter->_tx_output_symbol))
 	{
+		// test stuff
 		if (_ask_transmitter->_tx_pin_direction != PIN_INPUT)
 		{
-			_ask_transmitter->_tx_pin_direction = PIN_INPUT;
-
 			// really bad stuff here
+			_ask_transmitter->_tx_pin_direction = PIN_INPUT;
 			core_util_critical_section_enter();
 			gpio_dir(&_ask_transmitter->_tx_pin, _ask_transmitter->_tx_pin_direction);
 			core_util_critical_section_exit();
 		}
+
 		return;
 	}
 
+	// test stuff
 	if (_ask_transmitter->_tx_pin_direction != PIN_OUTPUT)
 	{
-		_ask_transmitter->_tx_pin_direction = PIN_OUTPUT;
-
 		// more really bad stuff here
+		_ask_transmitter->_tx_pin_direction = PIN_OUTPUT;
 		core_util_critical_section_enter();
 		gpio_dir(&_ask_transmitter->_tx_pin, _ask_transmitter->_tx_pin_direction);
 		core_util_critical_section_exit();

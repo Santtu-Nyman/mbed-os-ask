@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.3.0 2018-07-13 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.3.1 2018-07-13 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -27,11 +27,7 @@ ask_receiver_t::ask_receiver_t(int rx_frequency, PinName rx_pin, uint8_t new_rx_
 
 ask_receiver_t::~ask_receiver_t()
 {
-	if (_is_initialized)
-	{
-		_rx_timer.detach();
-		_ask_receiver = 0;
-	}
+	init(0, NC, ASK_RECEIVER_BROADCAST_ADDRESS);
 }
 
 bool ask_receiver_t::init(int rx_frequency, PinName rx_pin)
@@ -41,6 +37,23 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin)
 
 bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_address)
 {
+	// shutdown if rx_frequency is 0
+	if (!rx_frequency)
+	{
+		// if receiver is initialized detach the interrupt handler and disconnect rx pin
+		if (_is_initialized)
+		{
+			_rx_timer.detach();
+			gpio_init_in(&_rx_pin, NC);
+			_is_initialized = false;
+		}
+		return true;
+	}
+
+	// fail rx pin is not connected
+	if (rx_pin == NC)
+		return false;
+
 	// fail init if invalid frequency
 	if (!is_valid_frequency(rx_frequency))
 		return false;
@@ -52,9 +65,12 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_addre
 	// this must be THE receiver
 	if (this == _ask_receiver)
 	{
-		// if reinitializing detach the interrupt handler
+		// if reinitializing detach the interrupt handler and disconnect rx pin
 		if (_is_initialized)
+		{
 			_rx_timer.detach();
+			gpio_init_in(&_rx_pin, NC);
+		}
 
 		_kermit = CRC16(0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
 		rx_address = new_rx_address;
@@ -186,7 +202,7 @@ bool ask_receiver_t::is_valid_frequency(int frequency)
 	// search valid frequency list for the value of frequency parameter
 	bool valid_frequency = false;
 	for (int i = 0, e = sizeof(valid_frequencies) / sizeof(int); !valid_frequency && i != e; ++i)
-		if (rx_frequency == valid_frequencies[i])
+		if (frequency == valid_frequencies[i])
 			valid_frequency = true;
 
 	return valid_frequency;
