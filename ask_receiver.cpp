@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.3.2 2018-07-13 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.4.0 2018-07-19 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -25,17 +25,28 @@ ask_receiver_t::ask_receiver_t(int rx_frequency, PinName rx_pin, uint8_t new_rx_
 	init(rx_frequency, rx_pin, new_rx_address);
 }
 
+ask_receiver_t::ask_receiver_t(int rx_frequency, PinName rx_pin, uint8_t new_rx_address, bool receive_all_packets)
+{
+	_is_initialized = false;
+	init(rx_frequency, rx_pin, new_rx_address, receive_all_packets);
+}
+
 ask_receiver_t::~ask_receiver_t()
 {
-	init(0, NC, ASK_RECEIVER_BROADCAST_ADDRESS);
+	init(0, NC, ASK_RECEIVER_BROADCAST_ADDRESS, false);
 }
 
 bool ask_receiver_t::init(int rx_frequency, PinName rx_pin)
 {
-	return init(rx_frequency, rx_pin, ASK_RECEIVER_BROADCAST_ADDRESS);
+	return init(rx_frequency, rx_pin, ASK_RECEIVER_BROADCAST_ADDRESS, false);
 }
 
 bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_address)
+{
+	return init(rx_frequency, rx_pin, new_rx_address, false);
+}
+
+bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_address, bool receive_all_packets)
 {
 	// shutdown if rx_frequency is 0
 	if (!rx_frequency)
@@ -84,6 +95,7 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_addre
 		_rx_ramp = 0;
 		_rx_integrator = 0;
 		_rx_bits = 0;
+		_receive_all_packets = receive_all_packets;
 		_rx_active = 0;
 
 		// if reinitializing do not reinitialize rx entropy
@@ -174,6 +186,7 @@ void ask_receiver_t::status(ask_receiver_status_t* current_status)
 		current_status->rx_pin = _rx_pin_name;
 		current_status->rx_address = rx_address;
 		current_status->initialized = true;
+		current_status->receive_all_packets = _receive_all_packets;
 		if (_rx_active)
 			current_status->active = true;
 		else
@@ -191,6 +204,7 @@ void ask_receiver_t::status(ask_receiver_status_t* current_status)
 		current_status->rx_pin = NC;
 		current_status->rx_address = ASK_RECEIVER_BROADCAST_ADDRESS;
 		current_status->initialized = false;
+		current_status->receive_all_packets = false;
 		current_status->active = false;
 		current_status->packets_available = 0;
 		current_status->packets_received = 0;
@@ -289,7 +303,7 @@ void ask_receiver_t::_rx_interrupt_handler()
 					}
 					_ask_receiver->_packet_length = received_byte;
 				}
-				else if (_ask_receiver->_packet_received == 1)
+				else if (_ask_receiver->_packet_received == 1 && !_ask_receiver->_receive_all_packets)
 				{
 					// ignore the packets that are not send to this receiver
 					if (received_byte != ASK_RECEIVER_BROADCAST_ADDRESS && received_byte != _ask_receiver->rx_address)

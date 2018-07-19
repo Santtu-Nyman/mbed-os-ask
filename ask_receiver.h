@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.3.2 2018-07-13 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.4.0 2018-07-19 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,8 @@
 		The receiver can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.4.0 2018-07-19
+			Added new overload for int and constructor.
 		version 1.3.2 2018-07-13
 			recv member function behavior improved.
 		version 1.3.1 2018-07-13
@@ -71,6 +73,7 @@ typedef struct ask_receiver_status_t
 	PinName rx_pin;
 	uint8_t rx_address;
 	bool initialized;
+	bool receive_all_packets;
 	bool active;
 	int packets_available;
 	size_t packets_received;
@@ -86,6 +89,7 @@ class ask_receiver_t
 		ask_receiver_t();
 		ask_receiver_t(int rx_frequency, PinName rx_pin);
 		ask_receiver_t(int rx_frequency, PinName rx_pin, uint8_t new_rx_address);
+		ask_receiver_t(int rx_frequency, PinName rx_pin, uint8_t new_rx_address, bool receive_all_packets);
 		// These constructors call init with same parameters.
 
 		~ask_receiver_t();
@@ -127,6 +131,30 @@ class ask_receiver_t
 					Mbed OS pin name for rx pin.
 				new_rx_address
 					rx address for the receiver.
+			Return
+				If the function succeeds, the return value is true and false on failure.
+		*/
+
+		bool init(int rx_frequency, PinName rx_pin, uint8_t new_rx_address, bool receive_all_packets);
+		/*
+			Descriptions
+				Re/initializes the receiver object with given parameters.
+				Re/initializing receiver object will fail if initialized receiver object already exists.
+				Value of rx_address is set to the new rx address.
+			Parameters
+				rx_frequency
+					The frequency of the receiver. This value is required to be valid frequency or 0, or the function fails.
+					Valid frequencies are 1000, 1250, 2500 and 3125.
+					If this parameter is 0 and the receiver is initialized it will shutdown.
+					If this parameter is 0 and the receiver is not initialized it will not initialize.
+					The receiver is not initialized after it is shutdown.
+				rx_pin
+					Mbed OS pin name for rx pin.
+				new_rx_address
+					rx address for the receiver.
+				receive_all_packets
+					If value of receive_all_packets is false receiver receives only packets that are send to broadcast address or receiver's rx address.
+					If value of receive_all_packets is true receiver receives all packets.
 			Return
 				If the function succeeds, the return value is true and false on failure.
 		*/
@@ -244,6 +272,7 @@ class ask_receiver_t
 		uint8_t _rx_ramp;
 		uint8_t _rx_integrator;
 		unsigned int _rx_bits;
+		bool _receive_all_packets;
 		volatile uint8_t _rx_active;
 		uint8_t _rx_entropy_input_bit_count;
 		uint32_t _rx_entropy_input;
