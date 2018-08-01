@@ -1,2 +1,2 @@
 # mbed-os-ask
-Tänne vois jotain kehitellä.
+TDMA development branch of mbed-os-ask.

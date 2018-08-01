@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.2.0 2018-07-04 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.4.1 2018-08-01 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -25,32 +25,48 @@ ask_receiver_t::ask_receiver_t(int rx_frequency, PinName rx_pin, uint8_t new_rx_
 	init(rx_frequency, rx_pin, new_rx_address);
 }
 
+ask_receiver_t::ask_receiver_t(int rx_frequency, PinName rx_pin, uint8_t new_rx_address, bool receive_all_packets)
+{
+	_is_initialized = false;
+	init(rx_frequency, rx_pin, new_rx_address, receive_all_packets);
+}
+
 ask_receiver_t::~ask_receiver_t()
 {
-	if (_is_initialized)
-	{
-		_rx_timer.detach();
-		_ask_receiver = 0;
-	}
+	init(0, NC, ASK_RECEIVER_BROADCAST_ADDRESS, false);
 }
 
 bool ask_receiver_t::init(int rx_frequency, PinName rx_pin)
 {
-	return init(rx_frequency, rx_pin, ASK_RECEIVER_BROADCAST_ADDRESS);
+	return init(rx_frequency, rx_pin, ASK_RECEIVER_BROADCAST_ADDRESS, false);
 }
 
 bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_address)
 {
-	static const int valid_frequencies[] = { 1000, 1250, 2500, 3125 };
+	return init(rx_frequency, rx_pin, new_rx_address, false);
+}
 
-	// search valid frequency list for the value of frequency parameter
-	bool invalid_frequency = true;
-	for (int i = 0, e = sizeof(valid_frequencies) / sizeof(int); invalid_frequency && i != e; ++i)
-		if (rx_frequency == valid_frequencies[i])
-			invalid_frequency = false;
+bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_address, bool receive_all_packets)
+{
+	// shutdown if rx_frequency is 0
+	if (!rx_frequency)
+	{
+		// if receiver is initialized detach the interrupt handler and disconnect rx pin
+		if (_is_initialized)
+		{
+			_rx_timer.detach();
+			gpio_init_in(&_rx_pin, NC);
+			_is_initialized = false;
+		}
+		return true;
+	}
+
+	// fail rx pin is not connected
+	if (rx_pin == NC)
+		return false;
 
 	// fail init if invalid frequency
-	if (invalid_frequency)
+	if (!is_valid_frequency(rx_frequency))
 		return false;
 
 	// only one receiver is allowed this one receiver is pointed by _ask_receiver
@@ -60,9 +76,12 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_addre
 	// this must be THE receiver
 	if (this == _ask_receiver)
 	{
-		// if reinitializing detach the interrupt handler
+		// if reinitializing detach the interrupt handler and disconnect rx pin
 		if (_is_initialized)
+		{
 			_rx_timer.detach();
+			gpio_init_in(&_rx_pin, NC);
+		}
 
 		_kermit = CRC16(0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
 		rx_address = new_rx_address;
@@ -76,7 +95,16 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_addre
 		_rx_ramp = 0;
 		_rx_integrator = 0;
 		_rx_bits = 0;
+		_receive_all_packets = receive_all_packets;
 		_rx_active = 0;
+
+		// if reinitializing do not reinitialize rx entropy
+		if (!_is_initialized)
+		{
+			// init rx entropy source is fliped crc32 initial value
+			rx_entropy = 0;
+		}
+
 		_packets_received = 0;
 		_packets_dropped = 0;
 		_bytes_received = 0;
@@ -101,11 +129,17 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_addre
 
 size_t ask_receiver_t::recv(void* message_buffer, size_t message_buffer_length)
 {
-	uint8_t ingnored;
-	return recv(&ingnored, message_buffer, message_buffer_length);
+	uint8_t ingnored[2];
+	return recv(&ingnored[0], &ingnored[1], message_buffer, message_buffer_length);
 }
 
 size_t ask_receiver_t::recv(uint8_t* tx_address, void* message_buffer, size_t message_buffer_length)
+{
+	uint8_t ingnored;
+	return recv(&ingnored, tx_address, message_buffer, message_buffer_length);
+}
+
+size_t ask_receiver_t::recv(uint8_t* rx_address, uint8_t* tx_address, void* message_buffer, size_t message_buffer_length)
 {
 	if (_packets_available)
 	{
@@ -122,8 +156,8 @@ size_t ask_receiver_t::recv(uint8_t* tx_address, void* message_buffer, size_t me
 			message_lenght -= message_truncate;
 		}
 
-		// discard header to part it is already validated by the interrupt handler
-		_discard_bytes_from_buffer(1);
+		// read header to part
+		*rx_address = _read_byte_from_buffer();
 
 		// read header from part
 		*tx_address = _read_byte_from_buffer();
@@ -132,7 +166,7 @@ size_t ask_receiver_t::recv(uint8_t* tx_address, void* message_buffer, size_t me
 		_discard_bytes_from_buffer(2);
 
 		// read message data to  buffer given by caller
-		for (uint8_t* i = (uint8_t*)message_buffer, * e = i + message_lenght; i != e; ++i)
+		for (uint8_t* i = (uint8_t*)message_buffer, *e = i + message_lenght; i != e; ++i)
 			*i = _read_byte_from_buffer();
 
 		// discard truncated message data and the crc it is already validated by the interrupt handler
@@ -150,6 +184,7 @@ void ask_receiver_t::status(ask_receiver_status_t* current_status)
 		current_status->rx_pin = _rx_pin_name;
 		current_status->rx_address = rx_address;
 		current_status->initialized = true;
+		current_status->receive_all_packets = _receive_all_packets;
 		if (_rx_active)
 			current_status->active = true;
 		else
@@ -159,6 +194,7 @@ void ask_receiver_t::status(ask_receiver_status_t* current_status)
 		current_status->packets_dropped = _packets_dropped;
 		current_status->bytes_received = _bytes_received;
 		current_status->bytes_dropped = _bytes_dropped;
+		current_status->rx_entropy = rx_entropy;
 	}
 	else
 	{
@@ -166,18 +202,38 @@ void ask_receiver_t::status(ask_receiver_status_t* current_status)
 		current_status->rx_pin = NC;
 		current_status->rx_address = ASK_RECEIVER_BROADCAST_ADDRESS;
 		current_status->initialized = false;
+		current_status->receive_all_packets = false;
 		current_status->active = false;
 		current_status->packets_available = 0;
 		current_status->packets_received = 0;
 		current_status->packets_dropped = 0;
 		current_status->bytes_received = 0;
 		current_status->bytes_dropped = 0;
+		current_status->rx_entropy = ~0;
 	}
+}
+
+bool ask_receiver_t::is_valid_frequency(int frequency)
+{
+	static const int valid_frequencies[] = { 1000, 1250, 2500, 3125 };
+
+	// search valid frequency list for the value of frequency parameter
+	bool valid_frequency = false;
+	for (int i = 0, e = sizeof(valid_frequencies) / sizeof(int); !valid_frequency && i != e; ++i)
+		if (frequency == valid_frequencies[i])
+			valid_frequency = true;
+
+	return valid_frequency;
 }
 
 void ask_receiver_t::_rx_interrupt_handler()
 {
 	uint8_t rx_sample = (uint8_t)gpio_read(&_ask_receiver->_rx_pin);
+
+	// rx_entropy is calculated to crc32 of all samples
+	uint32_t rx_crc = ~_ask_receiver->rx_entropy;
+	uint32_t rx_crc_msb = ((uint32_t)rx_sample ^ rx_crc) & 1;
+	_ask_receiver->rx_entropy = ~((rx_crc_msb << 31) | ((rx_crc >> 1) ^ (0x6DB88320 & (0 - rx_crc_msb))));
 
 	// sum all samples till ramp reaches ASK_RECEIVER_RAMP_LENGTH
 	_ask_receiver->_rx_integrator += rx_sample;
@@ -239,7 +295,7 @@ void ask_receiver_t::_rx_interrupt_handler()
 					}
 					_ask_receiver->_packet_length = received_byte;
 				}
-				else if (_ask_receiver->_packet_received == 1)
+				else if (_ask_receiver->_packet_received == 1 && !_ask_receiver->_receive_all_packets)
 				{
 					// ignore the packets that are not send to this receiver
 					if (received_byte != ASK_RECEIVER_BROADCAST_ADDRESS && received_byte != _ask_receiver->rx_address)
