@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK transmitter version version 1.3.1 2018-07-13 by Santtu Nyman.
+	Mbed OS ASK transmitter version version 1.3.2 2018-08-01 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,8 @@
 		The transmitter can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.3.2 2018-08-01
+			Wired debug mode added.
 		version 1.3.1 2018-07-13
 			Transmitter initialization behavior improved.
 		version 1.3.0 2018-07-13
@@ -48,7 +50,7 @@
 
 #define ASK_TRANSMITTER_VERSION_MAJOR 1
 #define ASK_TRANSMITTER_VERSION_MINOR 3
-#define ASK_TRANSMITTER_VERSION_PATCH 1
+#define ASK_TRANSMITTER_VERSION_PATCH 2
 
 #define ASK_TRANSMITTER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_TRANSMITTER_VERSION_MAJOR << 16) | (ASK_TRANSMITTER_VERSION_MINOR << 8) | ASK_TRANSMITTER_VERSION_PATCH))
 
@@ -217,9 +219,6 @@ class ask_transmitter_t
 		// No copying object of this type!
 		ask_transmitter_t(const ask_transmitter_t&);
 		ask_transmitter_t& operator=(const ask_transmitter_t&);
-
-		// NOTE: this variable is temporal testing thing that need to be removed leter.
-		PinDirection _tx_pin_direction;
 };
 
 #endif

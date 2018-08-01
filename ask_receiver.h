@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.4.0 2018-07-19 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.4.1 2018-08-01 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,8 +7,10 @@
 		The receiver can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.4.1 2018-08-01
+			rx_entropy bit mixing improved.
 		version 1.4.0 2018-07-19
-			Added new overload for int and constructor.
+			Added new overload for init and constructor.
 		version 1.3.2 2018-07-13
 			recv member function behavior improved.
 		version 1.3.1 2018-07-13
@@ -32,15 +34,14 @@
 			CRC16.h header integrated.
 		version 1.0.0 2018-06-05
 			first
-
 */
 
 #ifndef ASK_RECEIVER_H
 #define ASK_RECEIVER_H
 
 #define ASK_RECEIVER_VERSION_MAJOR 1
-#define ASK_RECEIVER_VERSION_MINOR 3
-#define ASK_RECEIVER_VERSION_PATCH 2
+#define ASK_RECEIVER_VERSION_MINOR 4
+#define ASK_RECEIVER_VERSION_PATCH 1
 
 #define ASK_RECEIVER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_RECEIVER_VERSION_MAJOR << 16) | (ASK_RECEIVER_VERSION_MINOR << 8) | ASK_RECEIVER_VERSION_PATCH))
 
@@ -64,8 +65,6 @@
 #define ASK_RECEIVER_RAMP_ADJUST ((ASK_RECEIVER_RAMP_INCREMENT / 2) - 1)
 #define ASK_RECEIVER_RAMP_INCREMENT_RETARD (ASK_RECEIVER_RAMP_INCREMENT - ASK_RECEIVER_RAMP_ADJUST)
 #define ASK_RECEIVER_RAMP_INCREMENT_ADVANCE (ASK_RECEIVER_RAMP_INCREMENT + ASK_RECEIVER_RAMP_ADJUST)
-
-#define ASK_RECEIVER_RX_ENTROPY_INITIALIZATION_VALUE 0x004E5353
 
 typedef struct ask_receiver_status_t
 {
@@ -274,8 +273,6 @@ class ask_receiver_t
 		unsigned int _rx_bits;
 		bool _receive_all_packets;
 		volatile uint8_t _rx_active;
-		uint8_t _rx_entropy_input_bit_count;
-		uint32_t _rx_entropy_input;
 		uint8_t _rx_bit_count;
 		uint8_t _packet_length;
 		uint8_t _packet_received;

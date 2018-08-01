@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK transmitter version version 1.3.1 2018-07-13 by Santtu Nyman.
+	Mbed OS ASK transmitter version version 1.3.2 2018-08-01 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -7,6 +7,13 @@
 
 // pointer to the transmitter for interrupt handler
 static ask_transmitter_t* _ask_transmitter;
+
+#define ASK_TRANSMITTER_WIRED_DEBUG_MODE
+
+#ifdef ASK_TRANSMITTER_WIRED_DEBUG_MODE
+// when the transmitter is not sending data tx will have no pull on wired debug mode
+static bool _tx_no_pull;
+#endif
 
 ask_transmitter_t::ask_transmitter_t()
 {
@@ -45,20 +52,19 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t new_tx_ad
 		// if transmitter is initialized detach the interrupt handler and disconnect tx pin
 		if (_is_initialized)
 		{
-			// test version
+#ifdef ASK_TRANSMITTER_WIRED_DEBUG_MODE
 			_tx_timer.detach();
 			core_util_critical_section_enter();
 			gpio_dir(&_tx_pin, PIN_INPUT);
 			core_util_critical_section_exit();
 			gpio_init_inout(&_tx_pin, NC, PIN_INPUT, PullNone, 0);
 			_is_initialized = false;
-
-			// real version
-			/*
+			_tx_no_pull = true;
+#else
 			_tx_timer.detach();
 			gpio_init_out_ex(&_tx_pin, NC, 0);
 			_is_initialized = false;
-			*/
+#endif
 		}
 		return true;
 	}
@@ -81,18 +87,17 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t new_tx_ad
 		// if reinitializing detach the interrupt handler and disconnect tx pin
 		if (_is_initialized)
 		{
-			// test version
+#ifdef ASK_TRANSMITTER_WIRED_DEBUG_MODE
 			_tx_timer.detach();
 			core_util_critical_section_enter();
 			gpio_dir(&_tx_pin, PIN_INPUT);
 			core_util_critical_section_exit();
 			gpio_init_inout(&_tx_pin, NC, PIN_INPUT, PullNone, 0);
-
-			// real version
-			/*
+			_tx_no_pull = true;
+#else
 			_tx_timer.detach();
 			gpio_init_out_ex(&_tx_pin, NC, 0);
-			*/
+#endif
 		}
 
 		_kermit = CRC16(0x1021, 0x0000, 0x0000, true, true, FAST_CRC);
@@ -114,12 +119,12 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t new_tx_ad
 
 		// init tx output pin
 
-		// test version
-		_tx_pin_direction = PIN_INPUT;
-		gpio_init_inout(&_tx_pin, _tx_pin_name, _tx_pin_direction, PullNone, 0);
-
-		// real version
-		// gpio_init_out_ex(&_tx_pin, _tx_pin_name, 0);
+#ifdef ASK_TRANSMITTER_WIRED_DEBUG_MODE
+		gpio_init_inout(&_tx_pin, _tx_pin_name, PIN_INPUT, PullNone, 0);
+		_tx_no_pull = true;
+#else
+		gpio_init_out_ex(&_tx_pin, _tx_pin_name, 0);
+#endif
 		
 		// attach the interrupt handler
 		_tx_timer.attach(&_tx_interrupt_handler, 1.0f / (float)tx_frequency);
@@ -232,34 +237,34 @@ bool ask_transmitter_t::is_valid_frequency(int frequency)
 
 void ask_transmitter_t::_tx_interrupt_handler()
 {
-	// NOTE: this function has temporal testing features that need to be removed leter.
-
 	// read next byte if !symbol_bit_index and if no data to send return from this function
 	uint8_t symbol_bit_index = _ask_transmitter->_tx_output_symbol_bit_index;
+
+#ifdef ASK_TRANSMITTER_WIRED_DEBUG_MODE
 	if (!symbol_bit_index && !_ask_transmitter->_read_byte_from_buffer(&_ask_transmitter->_tx_output_symbol))
 	{
-		// test stuff
-		if (_ask_transmitter->_tx_pin_direction != PIN_INPUT)
+		if (!_tx_no_pull)
 		{
-			// really bad stuff here
-			_ask_transmitter->_tx_pin_direction = PIN_INPUT;
+			// really bad debug stuff here
 			core_util_critical_section_enter();
-			gpio_dir(&_ask_transmitter->_tx_pin, _ask_transmitter->_tx_pin_direction);
+			gpio_dir(&_ask_transmitter->_tx_pin, PIN_INPUT);
 			core_util_critical_section_exit();
+			_tx_no_pull = true;
 		}
-
 		return;
 	}
-
-	// test stuff
-	if (_ask_transmitter->_tx_pin_direction != PIN_OUTPUT)
+	if (_tx_no_pull)
 	{
-		// more really bad stuff here
-		_ask_transmitter->_tx_pin_direction = PIN_OUTPUT;
+		// more really bad debug stuff here
 		core_util_critical_section_enter();
-		gpio_dir(&_ask_transmitter->_tx_pin, _ask_transmitter->_tx_pin_direction);
+		gpio_dir(&_ask_transmitter->_tx_pin, PIN_OUTPUT);
 		core_util_critical_section_exit();
+		_tx_no_pull = false;
 	}
+#else
+	if (!symbol_bit_index && !_ask_transmitter->_read_byte_from_buffer(&_ask_transmitter->_tx_output_symbol))
+		return;
+#endif
 
 	// send next bit if there is more data to send.
 	

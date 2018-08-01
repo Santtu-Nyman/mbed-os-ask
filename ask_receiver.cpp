@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.4.0 2018-07-19 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.4.1 2018-08-01 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -101,10 +101,8 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_addre
 		// if reinitializing do not reinitialize rx entropy
 		if (!_is_initialized)
 		{
-			// init rx entropy source
-			_rx_entropy_input_bit_count = 0;
-			_rx_entropy_input = 0;
-			rx_entropy = ASK_RECEIVER_RX_ENTROPY_INITIALIZATION_VALUE;
+			// init rx entropy source is fliped crc32 initial value
+			rx_entropy = 0;
 		}
 
 		_packets_received = 0;
@@ -211,7 +209,7 @@ void ask_receiver_t::status(ask_receiver_status_t* current_status)
 		current_status->packets_dropped = 0;
 		current_status->bytes_received = 0;
 		current_status->bytes_dropped = 0;
-		current_status->rx_entropy = ASK_RECEIVER_RX_ENTROPY_INITIALIZATION_VALUE;
+		current_status->rx_entropy = ~0;
 	}
 }
 
@@ -232,16 +230,10 @@ void ask_receiver_t::_rx_interrupt_handler()
 {
 	uint8_t rx_sample = (uint8_t)gpio_read(&_ask_receiver->_rx_pin);
 
-	// entropy input bits are shifted left and next bit is append to the front
-	_ask_receiver->_rx_entropy_input = (_ask_receiver->_rx_entropy_input << 1) | (uint32_t)rx_sample;
-	_ask_receiver->_rx_entropy_input_bit_count++;
-	if (_ask_receiver->_rx_entropy_input_bit_count == 32)
-	{
-		// rx entropy is rotated right, xord with new entropy input bits and incremented
-		// this way of mixing entropy input bits may not be optimal
-		_ask_receiver->rx_entropy = (((_ask_receiver->rx_entropy << 31) | (_ask_receiver->rx_entropy >> 1)) ^ _ask_receiver->_rx_entropy_input) + 1;
-		_ask_receiver->_rx_entropy_input_bit_count = 0;
-	}
+	// rx_entropy is calculated to crc32 of all samples
+	uint32_t rx_crc = ~_ask_receiver->rx_entropy;
+	uint32_t rx_crc_msb = ((uint32_t)rx_sample ^ rx_crc) & 1;
+	_ask_receiver->rx_entropy = ~((rx_crc_msb << 31) | ((rx_crc >> 1) ^ (0x6DB88320 & (0 - rx_crc_msb))));
 
 	// sum all samples till ramp reaches ASK_RECEIVER_RAMP_LENGTH
 	_ask_receiver->_rx_integrator += rx_sample;
