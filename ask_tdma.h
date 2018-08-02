@@ -1,14 +1,27 @@
 /*
-	Mbed OS ASK TDMA version 0.0.0 2018-08-01 by Santtu Nyman.
+	Mbed OS ASK TDMA version 0.0.1 2018-08-02 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
 		Some simple tdma protocol implementation made for testing ask receiver and transmitter and other educational purposes.
 		
+	Version history
+		version 0.0.1 2018-08-02	  	
+			TDMA client and base station usage documented.
+		version 0.0.0 2018-08-01
+			First publicly available version.
+		
 */
 
 #ifndef ASK_TDMA_H
 #define ASK_TDMA_H
+
+#define ASK_TDMA_VERSION_MAJOR 0
+#define ASK_TDMA_VERSION_MINOR 0
+#define ASK_TDMA_VERSION_PATCH 1
+
+#define ASK_TDMA_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_TDMA_VERSION_MAJOR << 16) | (ASK_TDMA_VERSION_MINOR << 8) | ASK_TDMA_VERSION_PATCH))
+
 
 #include "mbed.h"
 #include "ask_receiver.h"
@@ -34,15 +47,98 @@
 class ask_tdma_client_t
 {
 	public:
-		// usage documentation will be added later
 		ask_tdma_client_t();
+
 		ask_tdma_client_t(PinName rx_pin, PinName tx_pin, int bit_rate);
+		// the constructor call init with same parameters.
+
 		~ask_tdma_client_t();
+
 		int init(PinName rx_pin, PinName tx_pin, int bit_rate);
+		/*
+			Description
+				Initializes the TDMA client object with given parameters.
+				If the client is already initialized it is reinitialized with the new parameters.
+				When reinitializing, client's reseved address is freed.
+			Parameters
+				rx_pin
+					Mbed OS pin name for rx pin.
+				tx_pin
+					Mbed OS pin name for tx pin.
+				bit_rate
+					Network bit rate. This value needs to be valid for ask receiver and transmitter.
+			Return
+				If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+		*/
+
 		int get_base_station_address(uint8_t* address);
+		/*
+			Description
+				Listens for base station and gets it's address.
+			Parameters
+				address
+					Pointer to variable that receives address of the base station.
+			Return
+				If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+		*/
+
 		int get_address(uint8_t* address);
+		/*
+			Description
+				This function queries reserved address of the client.
+				If the client does not have a reserved address it request new address from base station.
+			Parameters
+				address
+					Pointer to variable that receives reserved address of the client.
+			Return
+				If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+		*/
+
 		int recv(int timeout, size_t message_buffer_size, void* message_buffer, uint8_t* rx_address, uint8_t* tx_address, size_t* message_received);
+		/*
+			Description
+				Function receives next packet from the network that is send to reserved address of the client or broadcast address.
+				If client does not have a reserved address only broadcasted packets are received.
+				Broadcast address is 0xFF.
+			Parameters
+				timeout
+					Specifies timeout of the function in microseconds.
+					If function does not receive packet before it timeouts, it fails with error ASK_TDMA_ERROR_TIMEOUT.
+					If timeout is 0 the function does not have time out, but it can return ASK_TDMA_ERROR_TIMEOUT for other reasons.
+				message_buffer_size
+					Size of buffer where the message is received.
+				message_buffer
+					Pointer to buffer where the message is received.
+				rx_address
+					Pointer to variable that receives packet rx address.
+				tx_address
+					Pointer to variable that receives packet tx address.
+				message_received
+					Pointer to variable that receives size of the received message.
+			Return
+				If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+		*/
+
 		int send(uint8_t rx_address, size_t message_size, const void* message_data, size_t* message_send);
+		/*
+			Description
+				Function sends a packet to the network, that contains message given by function parameters.
+				The packet tx address is client's reserved address if it has a reserved address else it is temporal address given by base station.
+			Parameters
+				rx_address
+					Packet rx address.
+					Broadcast address is 0xFF.
+				message_size
+					Size of the message to be send.
+				message_data
+					Pointer to buffer that contain the message to be send.
+				message_send
+					Pointer to variable that receives number of bytes send.
+					This value is valid even if the function fails.
+			Return
+				If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+		*/
+
 	private:
 		int frame_synchronization(bool join, bool reserve_address);
 		uint8_t wait_for_data_slot();
@@ -72,5 +168,21 @@ class ask_tdma_client_t
 };
 
 int ask_tdma_host_network(PinName rx_pin, PinName tx_pin, int bit_rate, uint8_t base_station_address);
+/*
+	Description
+		Function creates and host a network.
+	Parameters
+		rx_pin
+			Mbed OS pin name for rx pin.
+		tx_pin
+			Mbed OS pin name for tx pin.
+		bit_rate
+			Network bit rate. This value needs to be valid for ask receiver and transmitter.
+		base_station_address
+			Address for the base station.
+			If this parameter is broadcast address the base station chooses a random address.
+	Return
+		If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+*/
 
 #endif
