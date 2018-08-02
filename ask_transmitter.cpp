@@ -8,8 +8,6 @@
 // pointer to the transmitter for interrupt handler
 static ask_transmitter_t* _ask_transmitter;
 
-#define ASK_TRANSMITTER_WIRED_DEBUG_MODE
-
 #ifdef ASK_TRANSMITTER_WIRED_DEBUG_MODE
 // when the transmitter is not sending data tx will have no pull on wired debug mode
 static bool _tx_no_pull;
