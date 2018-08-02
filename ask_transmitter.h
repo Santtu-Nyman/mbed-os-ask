@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK transmitter version 1.2.0 2018-07-04 by Santtu Nyman.
+	Mbed OS ASK transmitter version version 1.3.2 2018-08-01 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,12 @@
 		The transmitter can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.3.2 2018-08-01
+			Wired debug mode added.
+		version 1.3.1 2018-07-13
+			Transmitter initialization behavior improved.
+		version 1.3.0 2018-07-13
+			is_valid_frequency member function added.
 		version 1.2.0 2018-07-04
 			tx_address member variable added.
 		version 1.1.0 2018-06-14
@@ -43,8 +49,8 @@
 #define ASK_TRANSMITTER_H
 
 #define ASK_TRANSMITTER_VERSION_MAJOR 1
-#define ASK_TRANSMITTER_VERSION_MINOR 2
-#define ASK_TRANSMITTER_VERSION_PATCH 0
+#define ASK_TRANSMITTER_VERSION_MINOR 3
+#define ASK_TRANSMITTER_VERSION_PATCH 2
 
 #define ASK_TRANSMITTER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_TRANSMITTER_VERSION_MAJOR << 16) | (ASK_TRANSMITTER_VERSION_MINOR << 8) | ASK_TRANSMITTER_VERSION_PATCH))
 
@@ -90,8 +96,11 @@ class ask_transmitter_t
 				Value of tx_address is set to the new tx address.
 			Parameters
 				tx_frequency
-					The frequency of the transmitter. This value is required to be valid frequency, or the function fails.
+					The frequency of the transmitter. This value is required to be valid frequency or 0, or the function fails.
 					Valid frequencies are 1000, 1250, 2500 and 3125.
+					If this parameter is 0 and the transmitter is initialized it will shutdown.
+					If this parameter is 0 and the transmitter is not initialized it will not be initialized.
+					The transmitter is not initialized after it is shutdown.
 				tx_pin
 					Mbed OS pin name for tx pin.
 			Return
@@ -106,8 +115,12 @@ class ask_transmitter_t
 				Value of tx_address is set to the new tx address.
 			Parameters
 				tx_frequency
-					The frequency of the transmitter. This value is required to be valid frequency, or the function fails.
+					The frequency of the transmitter. This value is required to be valid frequency or 0, or the function fails.
 					Valid frequencies are 1000, 1250, 2500 and 3125.
+					If this parameter is 0 and the transmitter is initialized it will shutdown.
+					If this parameter is 0 and the transmitter is not initialized it will not be initialized.
+					The transmitter is not initialized after it is shutdown.
+
 				tx_pin
 					Mbed OS pin name for tx pin.
 				new_tx_address
@@ -160,6 +173,19 @@ class ask_transmitter_t
 					Pointer to variable that receives current stutus of the transmitter.
 			Return
 				No return value.
+		*/
+
+		static bool is_valid_frequency(int frequency);
+		/*
+			Description
+				Function test if given frequency is valid for transmitter.
+				Valid frequencies are listed on documentation of init function.
+				This function does not require initialized transmitter.
+			Parameters
+				frequency
+					Value of frequency specifies the frequency that is tested.
+			Return
+				returns true if given frequency is valid for transmitter, else return value is false.
 		*/
 
 		volatile uint8_t tx_address;

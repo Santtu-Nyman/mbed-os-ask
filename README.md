@@ -1,2 +1,3 @@
 # mbed-os-ask
-Tänne vois jotain kehitellä.
+Simple ASK receiver and transmitter for Mbed OS
+that is compatible with RadioHead library's ASK driver.
