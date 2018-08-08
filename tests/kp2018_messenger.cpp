@@ -242,6 +242,12 @@ DWORD receive(HANDLE serial_port, BYTE* address, SIZE_T message_buffer_size, SIZ
 			error = GetLastError();
 			return error ? error : ERROR_UNIDENTIFIED_ERROR;
 		}
+	if (*address == 0xFF)
+	{
+		*message_size = 0;
+		return ERROR_TIMEOUT;
+	}
+	*message_size = (SIZE_T)message_size_byte;
 	return 0;
 }
 

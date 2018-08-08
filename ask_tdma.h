@@ -67,8 +67,10 @@ class ask_tdma_client_t
 					Mbed OS pin name for tx pin.
 				bit_rate
 					Network bit rate. This value needs to be valid for ask receiver and transmitter.
+					Valid bit rates are 1000, 1250, 2500 and 3125 bit/s.
+					RWS-371 receiver and TWS-BS transmitter will have high packet drop rate at bit rate of 3125 bit/s
 			Return
-				If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+				If the function succeeds, the return value is 0 and ASK TDMA error code on failure.
 		*/
 
 		int get_base_station_address(uint8_t* address);
@@ -79,7 +81,7 @@ class ask_tdma_client_t
 				address
 					Pointer to variable that receives address of the base station.
 			Return
-				If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+				If the function succeeds, the return value is 0 and ASK TDMA error code on failure.
 		*/
 
 		int get_address(uint8_t* address);
@@ -91,7 +93,7 @@ class ask_tdma_client_t
 				address
 					Pointer to variable that receives reserved address of the client.
 			Return
-				If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+				If the function succeeds, the return value is 0 and ASK TDMA error code on failure.
 		*/
 
 		int recv(int timeout, size_t message_buffer_size, void* message_buffer, uint8_t* rx_address, uint8_t* tx_address, size_t* message_received);
@@ -116,7 +118,7 @@ class ask_tdma_client_t
 				message_received
 					Pointer to variable that receives size of the received message.
 			Return
-				If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+				If the function succeeds, the return value is 0 and ASK TDMA error code on failure.
 		*/
 
 		int send(uint8_t rx_address, size_t message_size, const void* message_data, size_t* message_send);
@@ -136,7 +138,7 @@ class ask_tdma_client_t
 					Pointer to variable that receives number of bytes send.
 					This value is valid even if the function fails.
 			Return
-				If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+				If the function succeeds, the return value is 0 and ASK TDMA error code on failure.
 		*/
 
 	private:
@@ -170,7 +172,7 @@ class ask_tdma_client_t
 int ask_tdma_host_network(PinName rx_pin, PinName tx_pin, int bit_rate, uint8_t base_station_address);
 /*
 	Description
-		Function creates and host a network.
+		Function creates and hosts a network.
 	Parameters
 		rx_pin
 			Mbed OS pin name for rx pin.
@@ -178,11 +180,12 @@ int ask_tdma_host_network(PinName rx_pin, PinName tx_pin, int bit_rate, uint8_t 
 			Mbed OS pin name for tx pin.
 		bit_rate
 			Network bit rate. This value needs to be valid for ask receiver and transmitter.
+			Valid bit rates are 1000, 1250, 2500 and 3125 bit/s.
 		base_station_address
 			Address for the base station.
 			If this parameter is broadcast address the base station chooses a random address.
 	Return
-		If the function succeeds, the return value is 0 and ASK TDME error code on failure.
+		If the function succeeds, the return value is 0 and ASK TDMA error code on failure.
 */
 
 #endif

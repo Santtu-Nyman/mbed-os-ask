@@ -42,8 +42,6 @@ bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin)
 
 bool ask_transmitter_t::init(int tx_frequency, PinName tx_pin, uint8_t new_tx_address)
 {
-	// NOTE: this function has temporal testing features that need to be removed leter.
-
 	// shutdown if tx_frequency is 0
 	if (!tx_frequency)
 	{

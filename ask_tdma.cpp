@@ -18,11 +18,13 @@
 
 static uint32_t initialize_xorshift32(ask_receiver_t* receiver)
 {
+	// initializes xorshift32 state from rx entropy
 	ask_receiver_status_t status;
 	receiver->status(&status);
 	uint32_t seed = 0;
 	while (!seed)
 	{
+		// wait for atleast 128 * receiver's samples per bit samples.
 		wait_us(128000000 / status.rx_frequency);
 		seed = receiver->rx_entropy;
 	}
@@ -31,6 +33,7 @@ static uint32_t initialize_xorshift32(ask_receiver_t* receiver)
 
 static uint32_t xorshift32(uint32_t state)
 {
+	// https://en.wikipedia.org/wiki/Xorshift
 	state ^= state << 13;
 	state ^= state >> 17;
 	state ^= state << 5;
@@ -39,6 +42,7 @@ static uint32_t xorshift32(uint32_t state)
 
 static void discard_all_messages(ask_receiver_t* receiver)
 {
+	// discards all messages from the receiver
 	ask_receiver_status_t status;
 	receiver->status(&status);
 	for (int i = 0; i != status.packets_available; ++i)
@@ -47,6 +51,7 @@ static void discard_all_messages(ask_receiver_t* receiver)
 
 ask_tdma_client_t::ask_tdma_client_t()
 {
+	// just clear all state
 	_base_station_address = ASK_RECEIVER_BROADCAST_ADDRESS;
 	_frame_number = 0;
 	_temporal_address = ASK_RECEIVER_BROADCAST_ADDRESS;
@@ -63,6 +68,7 @@ ask_tdma_client_t::ask_tdma_client_t()
 
 ask_tdma_client_t::ask_tdma_client_t(PinName rx_pin, PinName tx_pin, int bit_rate)
 {
+	// clear all state before init
 	_base_station_address = ASK_RECEIVER_BROADCAST_ADDRESS;
 	_frame_number = 0;
 	_temporal_address = ASK_RECEIVER_BROADCAST_ADDRESS;
@@ -75,11 +81,14 @@ ask_tdma_client_t::ask_tdma_client_t(PinName rx_pin, PinName tx_pin, int bit_rat
 	_us_per_bit = 0;
 	_rx_pin = NC;
 	_tx_pin = NC;
+
+	// call init to initialize the client
 	init(rx_pin, tx_pin, bit_rate);
 }
 
 ask_tdma_client_t::~ask_tdma_client_t()
 {
+	// free reserved address on destruction
 	if (_reserved_address != ASK_RECEIVER_BROADCAST_ADDRESS && !join(false))
 		leave(false);
 }
@@ -89,9 +98,11 @@ int ask_tdma_client_t::init(PinName rx_pin, PinName tx_pin, int bit_rate)
 	if (rx_pin == NC || tx_pin == NC || !_receiver.is_valid_frequency(bit_rate) || !_transmitter.is_valid_frequency(bit_rate))
 		return ASK_TDMA_ERROR_INVALID_PARAMETER;
 
+	// when reinitializing, free reserved address
 	if (_reserved_address != ASK_RECEIVER_BROADCAST_ADDRESS && !join(false))
 		leave(false);
 
+	// clear old state
 	_base_station_address = ASK_RECEIVER_BROADCAST_ADDRESS;
 	_frame_number = 0;
 	_temporal_address = ASK_RECEIVER_BROADCAST_ADDRESS;
@@ -100,6 +111,7 @@ int ask_tdma_client_t::init(PinName rx_pin, PinName tx_pin, int bit_rate)
 	_data_slot_available = false;
 	for (uint8_t i = 0; i != 16; ++i)
 		_data_slot_lengths[i] = 0;
+
 	_bit_rate = bit_rate;
 	_us_per_bit = 1000000 / _bit_rate;
 	_rx_pin = rx_pin;
@@ -111,15 +123,22 @@ int ask_tdma_client_t::get_base_station_address(uint8_t* address)
 {
 	if (_base_station_address != ASK_RECEIVER_BROADCAST_ADDRESS)
 	{
+		// return base station address if it is already known
 		*address = _base_station_address;
 		return 0;
 	}
+
+	// initialize receiver for listenin for base station
 	if (!_receiver.init(_bit_rate, _rx_pin, _reserved_address))
 		return ASK_TDMA_ERROR_RECEIVER_ERROR;
+
+	// wait for frame synchronization packet
 	int error = frame_synchronization(false, _reserved_address != ASK_RECEIVER_BROADCAST_ADDRESS);
 	_receiver.init(0, NC);
 	if (error)
 		return error;
+
+	// return the tx address of frame synchronization packet
 	*address = _base_station_address;
 	return 0;
 }
@@ -128,15 +147,20 @@ int ask_tdma_client_t::get_address(uint8_t* address)
 {
 	if (_reserved_address != ASK_RECEIVER_BROADCAST_ADDRESS)
 	{
+		// return reserved address if the client has one
 		*address = _reserved_address;
 		return 0;
 	}
+
+	// join to network and reserve address
 	int error = join(true);
 	if (error)
 		return error;
 	error = leave(true);
+
 	if (_reserved_address != ASK_RECEIVER_BROADCAST_ADDRESS)
 	{
+		// return client's new reserved address given by base station
 		*address = _reserved_address;
 		return 0;
 	}
@@ -147,6 +171,7 @@ int ask_tdma_client_t::get_address(uint8_t* address)
 
 int ask_tdma_client_t::recv(int timeout, size_t message_buffer_size, void* message_buffer, uint8_t* rx_address, uint8_t* tx_address, size_t* message_received)
 {
+	// initialize receiver for receiving a transfer
 	if (!_receiver.init(_bit_rate, _rx_pin, _reserved_address))
 		return ASK_TDMA_ERROR_RECEIVER_ERROR;
 
@@ -165,10 +190,12 @@ int ask_tdma_client_t::recv(int timeout, size_t message_buffer_size, void* messa
 		_timer.reset();
 		_timer.start();
 		
+		// wait for transfer packet
 		for (bool waiting_for_transfer = true; waiting_for_transfer;)
 		{
 			if (_timer.read_us() >= timeout)
 			{
+				// fail the function if timeout
 				_timer.stop();
 				_receiver.init(0, NC);
 				*rx_address = transfer_receiver;
@@ -179,9 +206,11 @@ int ask_tdma_client_t::recv(int timeout, size_t message_buffer_size, void* messa
 			transfer_message_size = _receiver.recv(&transfer_receiver, &transfer_sender, transfer_message, 4);
 			if (transfer_message_size == 4 && (transfer_message[0] & 0xF) == ASK_TDMA_TRANSFER_MESSAGE)
 			{
+				// transfer packet received
 				uint32_t tranfer_raw_size = (uint32_t)transfer_message[1] | ((uint32_t)transfer_message[2] << 8) | ((uint32_t)transfer_message[3] << 16);
 				if (tranfer_raw_size > SIZE_MAX)
 				{
+					// fail if size of message being transfered is greater than SIZE_MAX
 					_receiver.init(0, NC);
 					*rx_address = transfer_receiver;
 					*tx_address = transfer_sender;
@@ -192,12 +221,15 @@ int ask_tdma_client_t::recv(int timeout, size_t message_buffer_size, void* messa
 				waiting_for_transfer = false;
 			}
 		}
+
+		// begin to read data packets of the transfer
 		bool not_last = true;
 		while (not_last && transfered != transfer_size && _timer.read_us() < timeout)
 		{
 			size_t message_size = _receiver.recv(&receiver, &sender, data_message, 16);
 			if (message_size && (data_message[0] & 0xF) == ASK_TDMA_DATA_MESSAGE && receiver == transfer_receiver && sender == transfer_sender)
 			{
+				// data packet received add it's data to message buffer
 				--message_size;
 				not_last = (data_message[0] & 0x10) != 0;
 				if (message_size > transfer_size - transfered)
@@ -226,14 +258,17 @@ int ask_tdma_client_t::recv(int timeout, size_t message_buffer_size, void* messa
 	}
 	else
 	{
+		// wait for transfer packet
 		for (bool waiting_for_transfer = true; waiting_for_transfer;)
 		{
 			transfer_message_size = _receiver.recv(&transfer_receiver, &transfer_sender, transfer_message, 4);
 			if (transfer_message_size == 4 && (transfer_message[0] & 0xF) == ASK_TDMA_TRANSFER_MESSAGE)
 			{
+				// transfer packet received
 				uint32_t tranfer_raw_size = (uint32_t)transfer_message[1] | ((uint32_t)transfer_message[2] << 8) | ((uint32_t)transfer_message[3] << 16);
 				if (tranfer_raw_size > SIZE_MAX)
 				{
+					// fail if size of message being transfered is greater than SIZE_MAX
 					_receiver.init(0, NC);
 					*rx_address = transfer_receiver;
 					*tx_address = transfer_sender;
@@ -244,12 +279,15 @@ int ask_tdma_client_t::recv(int timeout, size_t message_buffer_size, void* messa
 				waiting_for_transfer = false;
 			}
 		}
+
+		// begin to read data packets of the transfer
 		bool not_last = true;
 		while (not_last && transfered != transfer_size)
 		{
 			size_t message_size = _receiver.recv(&receiver, &sender, data_message, 16);
 			if (message_size && (data_message[0] & 0xF) == ASK_TDMA_DATA_MESSAGE && receiver == transfer_receiver && sender == transfer_sender)
 			{
+				// data packet received add it's data to message buffer
 				--message_size;
 				not_last = (data_message[0] & 0x10) != 0;
 				if (message_size > transfer_size - transfered)
@@ -276,32 +314,38 @@ int ask_tdma_client_t::recv(int timeout, size_t message_buffer_size, void* messa
 
 int ask_tdma_client_t::send(uint8_t rx_address, size_t message_size, const void* message_data, size_t* message_send)
 {
+	// join to network for transfering a massage
 	int error = join(_reserved_address != ASK_RECEIVER_BROADCAST_ADDRESS);
 	if (error)
 		return error;
 
 	uint8_t data_message[16];
 
-	uint8_t data_slots_available = wait_for_data_slot();
+	uint8_t data_slot_available = wait_for_data_slot();
 
-	if (data_slots_available)
+	if (data_slot_available)
 	{
+		// if joining to network succeeds, data slot should be available
+		// send transfer packet to begin the transfer
 		uint8_t transfer_message[4] = { (uint8_t)(ASK_TDMA_TRANSFER_MESSAGE | (_frame_number << 5)), (uint8_t)message_size, (uint8_t)(message_size >> 8), (uint8_t)(message_size >> 16) };
 		_transmitter.send(rx_address, transfer_message, 4);
-		--data_slots_available;
+		--data_slot_available;
 		wait_us(330 * _us_per_bit);
 	}
 	else
 	{
+		// this code should not be possible to reach if this are working correctly
 		leave(_reserved_address != ASK_RECEIVER_BROADCAST_ADDRESS);
 		return ASK_TDMA_ERROR_MALFUNCTIONING_NETWORK;
 	}
 
 	size_t message_remaining = message_size;
 
+	// loop until the message is sent
 	while (message_remaining)
 	{
-		for (uint8_t i = 0; message_remaining && i != data_slots_available; ++i)
+		// send data packets of the current frame
+		for (uint8_t i = 0; message_remaining && i != data_slot_available; ++i)
 		{
 			size_t packet_message_size = (message_remaining < 16) ? message_remaining : 15;
 			message_remaining -= packet_message_size;
@@ -311,6 +355,8 @@ int ask_tdma_client_t::send(uint8_t rx_address, size_t message_size, const void*
 			_transmitter.send(rx_address, data_message, 1 + packet_message_size);
 			wait_us(330 * _us_per_bit);
 		}
+
+		// if more data packet to send wait for next frame
 		if (message_remaining)
 		{
 			error = frame_synchronization(false, _reserved_address != ASK_RECEIVER_BROADCAST_ADDRESS);
@@ -320,7 +366,7 @@ int ask_tdma_client_t::send(uint8_t rx_address, size_t message_size, const void*
 				*message_send = message_size - message_remaining;
 				return error;
 			}
-			data_slots_available = wait_for_data_slot();
+			data_slot_available = wait_for_data_slot();
 		}
 	}
 
@@ -338,12 +384,17 @@ int ask_tdma_client_t::frame_synchronization(bool join, bool reserve_address)
 
 	_timer.reset();
 	_timer.start();
+
+	// wait for frame synchronization packet
 	while (_timer.read_us() < ASK_TDMA_TIMEOUT_MULTIPLIER * ASK_TDMA_MAXIMUM_FRAME_LENGTH * _us_per_bit)
 	{
 		size = (uint8_t)_receiver.recv(&receiver_address, &sender_address, data, 34);
 
 		if (receiver_address == ASK_RECEIVER_BROADCAST_ADDRESS && size > 1 && (data[0] & 0xF) == ASK_TDMA_SYNCHRONIZATION_MESSAGE && ((sender_address != ASK_RECEIVER_BROADCAST_ADDRESS && sender_address == _base_station_address) || _base_station_address == ASK_RECEIVER_BROADCAST_ADDRESS))
 		{
+			// frame synchronization packet received
+
+			// discard old trash
 			discard_all_messages(&_receiver);
 
 			_base_station_address = sender_address;
@@ -386,6 +437,7 @@ int ask_tdma_client_t::frame_synchronization(bool join, bool reserve_address)
 								_data_slot = data[2 + (i << 1) + 1] & 0xF;
 								data_slot_removed = false;
 							}
+
 						if (data_slot_removed)
 						{
 							_temporal_address = ASK_RECEIVER_BROADCAST_ADDRESS;
@@ -430,13 +482,18 @@ int ask_tdma_client_t::frame_synchronization(bool join, bool reserve_address)
 
 uint8_t ask_tdma_client_t::wait_for_data_slot()
 {
+	// test if current frames data slot is used
 	if (_data_slot_available)
 	{
 		_data_slot_available = false;
 		int data_slot_length = 0;
 		for (uint8_t i = 0; i != _data_slot; ++i)
 			data_slot_length += (int)_data_slot_lengths[i];
+
+		// wait for the client's data slot
 		wait_us(((132 + 1 * 12 + 6) + (int)data_slot_length * (132 + 16 * 12 + 6)) * _us_per_bit);
+
+		// return the length of the data slot
 		return _data_slot_lengths[_data_slot];
 	}
 	else
@@ -453,11 +510,13 @@ int ask_tdma_client_t::join(bool reserve_address)
 		return ASK_TDMA_ERROR_TRANSMITTER_ERROR;
 	}
 
+	// initialize xorshift32 state for random join change calculations
 	uint32_t xorshift32_state = initialize_xorshift32(&_receiver);
 
 	_timer.reset();
 	_timer.start();
 
+	// discard old trash
 	discard_all_messages(&_receiver);
 
 	for (int join_requests_failed = 0, join_request_send = 0; _timer.read_us() < ASK_TDMA_TIMEOUT_MULTIPLIER * ASK_TDMA_MAXIMUM_FRAME_LENGTH * _us_per_bit;)
