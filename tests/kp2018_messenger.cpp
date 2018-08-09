@@ -369,6 +369,8 @@ void main()
 	}
 	if (serial_port && send_message && send_address)
 	{
+
+
 		if (lstrlenW(send_address) != 2 ||
 			!((send_address[0] >= L'0' && send_address[0] <= L'9') || (send_address[0] >= L'A' && send_address[0] <= L'F')) ||
 			!((send_address[1] >= L'0' && send_address[1] <= L'9') || (send_address[1] >= L'A' && send_address[1] <= L'F')))
@@ -384,14 +386,14 @@ void main()
 			print(console, L"Error utf16_to_ansi failed\n");
 			ExitProcess((UINT)error);
 		}
-		HANDLE serila_port;
-		error = open_serial_port(serial_port, 9600, 0, 0, &serila_port);
+		HANDLE serila_port_handle;
+		error = open_serial_port(serial_port, 9600, 0, 0, &serila_port_handle);
 		if (error)
 		{
 			print(console, L"Error open_serial_port failed\n");
 			ExitProcess((UINT)error);
 		}
-		error = send(serila_port, address, lstrlenA(ansi_send_message), ansi_send_message);
+		error = send(serila_port_handle, address, lstrlenA(ansi_send_message), ansi_send_message);
 		if (error)
 		{
 			print(console, L"Error send failed\n");
@@ -408,8 +410,8 @@ void main()
 			print(console, L"Error HeapAlloc failed\n");
 			ExitProcess((UINT)error);
 		}
-		HANDLE serila_port;
-		error = open_serial_port(serial_port, 9600, 0, 0, &serila_port);
+		HANDLE serila_port_handle;
+		error = open_serial_port(serial_port, 9600, 0, 0, &serila_port_handle);
 		if (error)
 		{
 			print(console, L"Error open_serial_port failed\n");
@@ -417,7 +419,7 @@ void main()
 		}
 		BYTE sender_address;
 		SIZE_T message_size;
-		error = receive(serila_port, &sender_address, 0x1000000, &message_size, ansi_message);
+		error = receive(serila_port_handle, &sender_address, 0x1000000, &message_size, ansi_message);
 		if (error)
 		{
 			print(console, L"Error receive failed\n");

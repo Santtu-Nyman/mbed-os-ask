@@ -1,12 +1,14 @@
 /*
-	Mbed OS ASK TDMA version 0.0.1 2018-08-02 by Santtu Nyman.
+	Mbed OS ASK TDMA version 1.0.0 2018-08-09 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
-		Some simple tdma protocol implementation made for testing ask receiver and transmitter and other educational purposes.
+		Some simple tdma protocol implementation made for testing ask receiver and transmitter and educational stuff.
 		
 	Version history
-		version 0.0.1 2018-08-02	  	
+		version 1.0.0 2018-08-09
+			Implementation code commented and minor updates added.
+		version 0.0.1 2018-08-02
 			TDMA client and base station usage documented.
 		version 0.0.0 2018-08-01
 			First publicly available version.
@@ -16,9 +18,9 @@
 #ifndef ASK_TDMA_H
 #define ASK_TDMA_H
 
-#define ASK_TDMA_VERSION_MAJOR 0
+#define ASK_TDMA_VERSION_MAJOR 1
 #define ASK_TDMA_VERSION_MINOR 0
-#define ASK_TDMA_VERSION_PATCH 1
+#define ASK_TDMA_VERSION_PATCH 0
 
 #define ASK_TDMA_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_TDMA_VERSION_MAJOR << 16) | (ASK_TDMA_VERSION_MINOR << 8) | ASK_TDMA_VERSION_PATCH))
 
