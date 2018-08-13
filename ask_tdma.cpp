@@ -415,6 +415,9 @@ int ask_tdma_client_t::frame_synchronization(bool join, bool reserve_address)
 
 			uint8_t data_slot_count = data[1] & 0x1F;
 
+			for (uint8_t i = data_slot_count; i != 16; ++i)
+				_data_slot_lengths[i] = 0;
+
 			uint8_t rename_count = (size - 2) >> 1;
 
 			for (uint8_t i = 0; i != rename_count; ++i)
@@ -423,7 +426,7 @@ int ask_tdma_client_t::frame_synchronization(bool join, bool reserve_address)
 			if (join)
 			{
 				// when joining network test if base station send join bit
-				if ((data[0] & 0x10) && rename_count)
+				if ((data[0] & 0x10) && rename_count && (_reserved_address == ASK_RECEIVER_BROADCAST_ADDRESS || data[2] == _reserved_address))
 				{
 					_temporal_address = data[2];
 					_data_slot = data[3] & 0xF;
@@ -480,8 +483,7 @@ int ask_tdma_client_t::frame_synchronization(bool join, bool reserve_address)
 				_transmitter.tx_address = _reserved_address;
 			}
 
-			if (_temporal_address != ASK_RECEIVER_BROADCAST_ADDRESS)
-				_data_slot_available = true;
+			_data_slot_available = _temporal_address != ASK_RECEIVER_BROADCAST_ADDRESS;
 
 			return 0;
 		}
@@ -544,12 +546,10 @@ int ask_tdma_client_t::join(bool reserve_address)
 	_timer.reset();
 	_timer.start();
 
-	// discard old trash from the receiver
-	discard_all_messages(&_receiver);
-
 	for (int join_requests_failed = 0, join_request_send = 0; _timer.read_us() < ASK_TDMA_TIMEOUT_MULTIPLIER * ASK_TDMA_ASSUMED_MAXIMUM_FRAME_LENGTH * _us_per_bit;)
 	{
 		// wait for frame synchronization packet and test if join request was successful if it was send
+
 		int error = frame_synchronization(join_request_send != 0, reserve_address);
 		if (!error)
 		{
@@ -580,6 +580,9 @@ int ask_tdma_client_t::join(bool reserve_address)
 				uint8_t join_message = ASK_TDMA_JOIN_MESSAGE | ((uint8_t)(reserve_address ? 1 : 0) << 4) | (_frame_number << 5);
 				_transmitter.send(_base_station_address, &join_message, 1);
 				join_request_send = 1;
+
+				// discard old trash from the receiver
+				discard_all_messages(&_receiver);
 			}
 		}
 		else
@@ -638,6 +641,8 @@ int ask_tdma_client_t::leave(bool reserve_address)
 	return ASK_TDMA_ERROR_TIMEOUT;
 }
 
+#define ASK_TDMA_SLOT_USAGE_MAXIMUM 16
+
 typedef struct ask_tdma_data_slot_t
 {
 	uint8_t address;
@@ -646,6 +651,7 @@ typedef struct ask_tdma_data_slot_t
 	uint8_t frame_usage;
 	bool transfer_ended;
 	bool keep_address_reserved;
+	bool rejoin_notification;
 } ask_tdma_data_slot_t;
 
 typedef struct ask_tdma_server_t
@@ -698,13 +704,18 @@ static bool get_free_address(const uint8_t* reserved_addresses, uint8_t* address
 
 static void process_frame_requests(ask_tdma_server_t* server, uint8_t synchronization_message_size, ask_tdma_data_slot_t* join_request)
 {
+	// discard messages from before the frame
+	discard_all_messages(&server->receiver);
+
 	for (uint8_t i = 0; i != server->data_slot_count; ++i)
 	{
 		server->data_slots[i].frame_usage = 0;
 		server->data_slots[i].transfer_ended = false;
+		server->data_slots[i].rejoin_notification = false;
 	}
 	int join_request_count = 0;
 	bool keep_join_address_reserved = false;
+	bool join_request_rejoin_notification = false;
 	uint8_t join_request_address = ASK_RECEIVER_BROADCAST_ADDRESS;
 	uint8_t receiver_address = ASK_RECEIVER_BROADCAST_ADDRESS;
 	uint8_t sender_address = ASK_RECEIVER_BROADCAST_ADDRESS;
@@ -724,9 +735,9 @@ static void process_frame_requests(ask_tdma_server_t* server, uint8_t synchroniz
 		size_t message_size = server->receiver.recv(&receiver_address, &sender_address, server->message_buffer, 34);
 		if (message_size && sender_address != server->receiver.rx_address)
 		{
-			bool data_slot_address = false;
+			uint8_t data_slot_address = (uint8_t)~0;
 			if (sender_address != ASK_RECEIVER_BROADCAST_ADDRESS)
-				for (uint8_t i = 0; !data_slot_address && i != server->data_slot_count; ++i)
+				for (uint8_t i = 0; data_slot_address == (uint8_t)~0 && i != server->data_slot_count; ++i)
 					if (server->data_slots[i].address == sender_address)
 					{
 						// process message from client that is connected to the network
@@ -738,14 +749,22 @@ static void process_frame_requests(ask_tdma_server_t* server, uint8_t synchroniz
 						}
 						else if (message_size && (server->message_buffer[0] & 0xF) == ASK_TDMA_DATA_MESSAGE && !(server->message_buffer[0] & 0x10))
 							server->data_slots[i].transfer_ended = true;
-						data_slot_address = true;
+						data_slot_address = i;
 					}
-			if (!data_slot_address && message_size && (server->message_buffer[0] & 0xF) == ASK_TDMA_JOIN_MESSAGE && (sender_address == ASK_RECEIVER_BROADCAST_ADDRESS || is_address_reserved(server->reserved_addresses, sender_address)))
+			if ((server->message_buffer[0] & 0xF) == ASK_TDMA_JOIN_MESSAGE)
 			{
 				// process message from client that is trying to connect to the network
+				if (data_slot_address != (uint8_t)~0)
+				{
+					server->data_slots[data_slot_address].rejoin_notification = true;
+					join_request_rejoin_notification = true;
+				}
+				else
+				{
+					keep_join_address_reserved = (server->message_buffer[0] & 0x10) != 0;
+					join_request_address = sender_address;
+				}
 				++join_request_count;
-				keep_join_address_reserved = (server->message_buffer[0] & 0x10) != 0;
-				join_request_address = sender_address;
 			}
 		}
 	}
@@ -756,7 +775,7 @@ static void process_frame_requests(ask_tdma_server_t* server, uint8_t synchroniz
 			// update client data slot usage information.
 			if (server->data_slots[i].frame_usage && server->data_slots[i].frame_usage <= server->data_slots[i].length && server->data_slots[i].usage != -128)
 			{
-				if (server->data_slots[i].usage != 127)
+				if (server->data_slots[i].usage != ASK_TDMA_SLOT_USAGE_MAXIMUM)
 					server->data_slots[i].usage++;
 			}
 			else if (!server->data_slots[i].frame_usage && server->data_slots[i].usage != -128)
@@ -764,7 +783,7 @@ static void process_frame_requests(ask_tdma_server_t* server, uint8_t synchroniz
 			else
 				server->data_slots[i].usage = -128;
 		}
-	if (join_request_count == 1)
+	if (join_request_count == 1 && !join_request_rejoin_notification)
 	{
 		// if new client is trying to join the network accept the join request
 		if (join_request_address == ASK_RECEIVER_BROADCAST_ADDRESS)
@@ -779,6 +798,7 @@ static void process_frame_requests(ask_tdma_server_t* server, uint8_t synchroniz
 				join_request->frame_usage = 0;
 				join_request->transfer_ended = false;
 				join_request->keep_address_reserved = keep_join_address_reserved;
+				join_request->rejoin_notification = false;
 			}
 			else
 			{
@@ -788,16 +808,20 @@ static void process_frame_requests(ask_tdma_server_t* server, uint8_t synchroniz
 				join_request->frame_usage = 0;
 				join_request->transfer_ended = false;
 				join_request->keep_address_reserved = false;
+				join_request->rejoin_notification = false;
 			}
 		}
 		else
 		{
+			if (!is_address_reserved(server->reserved_addresses, join_request_address))
+				reserve_address(server->reserved_addresses, join_request_address);
 			join_request->address = join_request_address;
 			join_request->length = 1;
 			join_request->usage = 0;
 			join_request->frame_usage = 0;
 			join_request->transfer_ended = false;
 			join_request->keep_address_reserved = keep_join_address_reserved;
+			join_request->rejoin_notification = false;
 		}
 	}
 	else
@@ -808,8 +832,8 @@ static void process_frame_requests(ask_tdma_server_t* server, uint8_t synchroniz
 		join_request->frame_usage = 0;
 		join_request->transfer_ended = false;
 		join_request->keep_address_reserved = false;
+		join_request->rejoin_notification = false;
 	}
-	discard_all_messages(&server->receiver);
 }
 
 static bool process_frame_renaming(ask_tdma_server_t* server, const ask_tdma_data_slot_t* join_request)
@@ -817,9 +841,33 @@ static bool process_frame_renaming(ask_tdma_server_t* server, const ask_tdma_dat
 	bool join_request_accepted = false;
 	server->rename_count = 0;
 
+	// invalid join request address for ranaming
+	if (join_request && join_request->address == ASK_RECEIVER_BROADCAST_ADDRESS)
+		join_request = 0;
+
+	// broadcast rejoin notification
+	for (uint8_t i = 0; i != server->data_slot_count; ++i)
+		if (server->data_slots[i].rejoin_notification)
+		{
+			// rejoin request accepted
+			if (!server->data_slots[i].length)
+				server->data_slots[i].length = 1;
+			server->data_slots[i].usage = 1;
+			server->renames[(server->rename_count << 1)] = server->data_slots[i].address;
+			server->renames[(server->rename_count << 1) + 1] = i | (server->data_slots[i].length << 4);
+			server->rename_count++;
+			join_request_accepted = true;
+
+			// join request ignored
+			if (join_request)
+				join_request = 0;
+
+			i = server->data_slot_count - 1;
+		}
+
 	// remove idle clients from the network
 	for (uint8_t i = 0; i != server->data_slot_count; ++i)
-		if (server->data_slots[i].usage < -1)
+		if (server->data_slots[i].address != ASK_RECEIVER_BROADCAST_ADDRESS && server->data_slots[i].usage < -1)
 		{
 			if (!server->data_slots[i].keep_address_reserved)
 				free_address(server->reserved_addresses, server->data_slots[i].address);
@@ -837,6 +885,7 @@ static bool process_frame_renaming(ask_tdma_server_t* server, const ask_tdma_dat
 				server->data_slots[i].usage = 0;
 				server->data_slots[i].transfer_ended = false;
 				server->data_slots[i].keep_address_reserved = false;
+				server->data_slots[i].rejoin_notification = false;
 			}
 			server->renames[(server->rename_count << 1)] = server->data_slots[i].address;
 			server->renames[(server->rename_count << 1) + 1] = i | (server->data_slots[i].length << 4);
@@ -847,7 +896,7 @@ static bool process_frame_renaming(ask_tdma_server_t* server, const ask_tdma_dat
 	{
 		// find unused data slot for the new client
 		for (uint8_t i = 0; i != server->data_slot_count; ++i)
-			if (!server->data_slots[i].length)
+			if (server->data_slots[i].address == ASK_RECEIVER_BROADCAST_ADDRESS)
 			{
 				server->data_slots[i] = *join_request;
 				join_request = 0;
@@ -891,7 +940,7 @@ static bool process_frame_renaming(ask_tdma_server_t* server, const ask_tdma_dat
 	// if no renaming optimize data slot lengths by shortening data slot of probably leaving clients
 	if (!server->rename_count)
 		for (uint8_t i = 0; i != server->data_slot_count; ++i)
-			if (server->data_slots[i].length > 1 && server->data_slots[i].transfer_ended)
+			if (server->data_slots[i].address != ASK_RECEIVER_BROADCAST_ADDRESS && server->data_slots[i].length > 1 && server->data_slots[i].transfer_ended)
 			{
 				server->data_slots[i].length = 1;
 				server->renames[(server->rename_count << 1)] = server->data_slots[i].address;
@@ -902,9 +951,9 @@ static bool process_frame_renaming(ask_tdma_server_t* server, const ask_tdma_dat
 	// if no renaming optimize data slot order by removing empty slot from between used slots
 	if (!server->rename_count)
 		for (uint8_t i = 0; i != server->data_slot_count && !server->rename_count; ++i)
-			if (!server->data_slots[i].length)
+			if (server->data_slots[i].address == ASK_RECEIVER_BROADCAST_ADDRESS)
 				for (uint8_t j = i + 1; j != server->data_slot_count; ++j)
-					if (server->data_slots[j].length)
+					if (server->data_slots[j].address != ASK_RECEIVER_BROADCAST_ADDRESS)
 					{
 						server->data_slots[i] = server->data_slots[j];
 						server->data_slots[j].address = ASK_RECEIVER_BROADCAST_ADDRESS;
@@ -923,7 +972,7 @@ static bool process_frame_renaming(ask_tdma_server_t* server, const ask_tdma_dat
 	// if no renaming optimize data slot lengths by giving longer data slots to clients that use them
 	if (!server->rename_count)
 		for (uint8_t i = 0; i != server->data_slot_count && !server->rename_count; ++i)
-			if (server->data_slots[i].usage && !server->data_slots[i].transfer_ended && server->data_slots[i].length < 4)
+			if (server->data_slots[i].address != ASK_RECEIVER_BROADCAST_ADDRESS && server->data_slots[i].usage && !server->data_slots[i].transfer_ended && server->data_slots[i].length < 4)
 			{
 				server->data_slots[i].length++;
 				server->renames[(server->rename_count << 1)] = server->data_slots[i].address;
@@ -934,7 +983,7 @@ static bool process_frame_renaming(ask_tdma_server_t* server, const ask_tdma_dat
 	// find last used data slot
 	server->data_slot_count = 0;
 	for (uint8_t i = 16; i-- && !server->data_slot_count;)
-		if (server->data_slots[i].length)
+		if (server->data_slots[i].address != ASK_RECEIVER_BROADCAST_ADDRESS)
 			server->data_slot_count = i + 1;
 
 	// when new client joins it needs to know lengths of other data slot so it can calculate time for it's data slot
@@ -1008,6 +1057,7 @@ static int start_server(PinName rx_pin, PinName tx_pin, int bit_rate, uint8_t ba
 		server->data_slots[i].usage = 0;
 		server->data_slots[i].frame_usage = 0;
 		server->data_slots[i].keep_address_reserved = false;
+		server->data_slots[i].rejoin_notification = false;
 	}
 
 	// set base station initial state
