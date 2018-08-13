@@ -528,6 +528,8 @@ uint8_t ask_tdma_client_t::wait_for_data_slot()
 
 int ask_tdma_client_t::join(bool reserve_address)
 {
+	uint32_t join_time_low_part = (uint32_t)time(0);
+
 	if (!_receiver.init(_bit_rate, _rx_pin, _reserved_address))
 		return ASK_TDMA_ERROR_RECEIVER_ERROR;
 	if (!_transmitter.init(_bit_rate, _tx_pin, _reserved_address))
@@ -568,10 +570,10 @@ int ask_tdma_client_t::join(bool reserve_address)
 			{
 				xorshift32_state = xorshift32(xorshift32_state);
 				if (!(xorshift32_state & 0xF))
-					xorshift32_state = _receiver.rx_entropy ^ (uint32_t)time(0);
+					xorshift32_state = _receiver.rx_entropy ^ join_time_low_part;
 			}
 			if (!xorshift32_state)
-				xorshift32_state = _receiver.rx_entropy ^ (uint32_t)time(0);
+				xorshift32_state = _receiver.rx_entropy ^ join_time_low_part;
 			xorshift32_state = xorshift32(xorshift32_state);
 			if ((16 - join_requests_failed) > (int)(xorshift32_state & 0xF))
 			{
