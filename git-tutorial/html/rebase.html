@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8" />
+  <title>Git Tutorial</title>
+  <link rel="stylesheet" type="text/css" href="../css/git-tutorial.css" />
+</head>
+<body>
+  <content>
+    <h1>Git Tutorial - 8. Rebase</h1>
+    <navigation>
+      <a href="../git-tutorial.html">1. Home</a>
+      <a href="git-installation.html">2. Git Installation (windows)</a>
+      <a href="repository-initialization.html">3. Repository Initialization</a>
+      <a href="repository-contents-post-init.html">4. Repository Contents Post-Init</a>
+      <a href="first-commit.html">5. First Commit</a>
+      <a href="repository-contents-post-commit.html">6. Repository Contents Post-Commit</a>
+      <a href="branches.html">7. Branches</a>
+      <a href="rebase.html">8. Rebase</a>
+      <a href="merge.html">9. Merge</a>
+      <a href="synching.html">10. Synching</a>      
+      <a href="cheat-sheet-command-line-interface.html">Cheat Sheet - Command Line Interface</a>
+      <a href="cheat-sheet-git.html">Cheat Sheet - Git</a>
+      <a href="cheat-sheet-git2.html">Cheat Sheet - Git#2</a>
+      <a href="cheat-sheet-vi-editor.html">Cheat Sheet - Vi Text Editor</a>
+    </navigation>
+    <gitbash>
+      <h2>Git Rebase</h2>
+      <vertical-pile>        
+        <ul class="none">
+          <p>
+            <li>Team of developers are working on a project.</li>
+            <li>Every team member has a feature to implement.</li>
+            <li>Developers create a local branch named after the feature they are developing on.</li>
+            <li>Developers work on their features accumulating lots of commits locally.</li>
+            <li>Developers reach their respective development milestones which require sharing them in the remote central repository.</li>
+            <li>Developers uploads their work, hundreds of commits pollute the history into an unreadable mess.</li>            
+            <li>Developers revert the changes made and learn about a git command rebase.</li>
+          </p><p>            
+            <li>While the main function of <span class="code">git rebase</span> is to take a branch and stick it on top of another branch, <span class="code">git rebase</span> also enables rewriting of commit history.</li>            
+            <li>It is the rewriting ability of <span class="code">git rebase</span> that solves the problem with convoluted commit chains when features get finished or reach a certain milestone.</li>
+          </p><p>
+            <li>By calling <span class="code">git rebase -i &#60TargetBranch&#62</span>, git takes the currently checked out branch and rebases it on the topmost commit of the targeted branch.</li>
+            <li>But before the actual rebase, the interactive mode forces user to tell git what should be done on the commits on this branch.</li>
+            <img src="../img/before-after-rebase.png" />            
+          </p><p>
+            <li>With git rebase user usually wants to:</li>
+            <li class="disc-list">drop some commits</li>
+            <li class="disc-list">keep some commits</li>
+            <li class="disc-list">reword the commit message of some commits</li>
+            <li class="disc-list">melt two or more commits together as one commit with single commit message.</li>
+          </p><p>                   
+            <li>The goal with the interactive mode is to make the commit chain (the commit history) to look as if all the milestones were nailed the first time they were written.</li>
+            <li>In case a commit is not "milestone worthy", but still an important commit, user can make a tag on the commit for future reference.</li>
+          </p><p>
+            <li class="bold">The video below demonstrates how rebase works for squashing commits and rebasing a branch.</li>
+            <video class="fat-border" src="../vid/git-rebase.webm" poster="../img/git-rebase-poster.png" controls muted></video>            
+          </p>          
+          <p>
+            <li>Rebase Summary:</li>
+            <li>Developing on a piece of software will take a number of commits, most of those commits are of little interest.</li>
+            <li>Rewriting the commit history with git rebase in interactive mode allows choosing the commits the user wants to keep, drop and squash to previous ones.</li>
+            <li>This achieves a clean commits history.</li>
+            <li>The desirable thing to do is to rewrite commit history to look as if it nailed the meaningful development milestones at first try.</li>
+            <li class="help">Use of rebase is unsuited for scenarios where several developers are working on the same branch.</li>
+          </p>
+        </ul>
+      </vertical-pile>
+      
+    </gitbash>
+    <footer></footer>
+  </content>
+</body>
+</html>
