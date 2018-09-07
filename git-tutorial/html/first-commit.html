@@ -63,18 +63,18 @@
             <li>Files in the index file are being compared to the ones in the working directory when <span class="code">git status</span> is being called.</li>
             <li>Tracking of files means this comparison work done by <span class="code">git status</span>.</li>            
           </p><p>
-            <li></li>
-            <li>Index file is conceptually known as the <span class="green bold">stage</span>, a place to add files to, which then can be <span class="green bold">committed</span> as a <span class="green bold">snapshot</span> to the key-value storage database inside git repository.</li>
+            <li>Index file is conceptually known as the <span class="green bold">stage</span>, a place where files are being added to, so git knows what files should be tracked for changes.</li>
+            <li>After the adding of files, the index file is <span class="green bold">commitable</span> as a <span class="green bold">snapshot</span> to the key-value storage database inside git repository.</li>
           </p><p>
-            <li>Snapshots have all the necessary information to restore the file structure and file contents of the working directory for the files that were staged before a commit.</li>
-            <li>User may choose not to track certain files, the untracked files will not be a part of a snapshot, but they will always be shown as untracked when <span class="code">git status</span> is called, unless they are being configured to be ignored.</li>
+            <li>Snapshots have all the necessary information to restore the file structure and file contents to the working directory.</li>
+            <li>User may choose not to track certain files, then the untracked files will not be a part of the snapshot, but they will always be shown as untracked when <span class="code">git status</span> is called, unless they are being configured to be ignored.</li>
             </p><p>
             <li>The same index file is used for all tracking, staging and committing of files.</li>
             <li>The index file is located in the root of .git.</li>
             <li>It was generated there after first call to <span class="code">git add &#60FileName&#62</span>.</li>
           </p><p>
             <li>Index file contents are always equal to "current snapshot files" plus any "newly added files".</li>
-            <li>In a brand new repository, there is no existing snapshot, so the index file contents is just the "newly added files", the HelloWorld.c.</li>
+            <li>In a brand new repository, there is no existing snapshot, so the index file contents is just the "newly added files", the HelloWorld.c in this case.</li>
           </p><p>
             <li>To list all the files currently in the index file, user can call <span class="code">git ls-files -s.</span></li>
             <li>The contents of an individual file in the index can be viewed in git bash by calling <span class="code">git show :&#60FileName&#62</span>.</li>
