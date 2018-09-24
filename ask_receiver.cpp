@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.4.1 2018-08-01 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.5.0 2018-09-25 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -91,9 +91,9 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_addre
 		_rx_pin_name = rx_pin;
 
 		_packets_available = 0;
-		_rx_last_sample = 0;
-		_rx_ramp = 0;
-		_rx_integrator = 0;
+		_flip_direction = 0;
+		_sample_count = 0;
+		_edge_flip_repeat = 0;
 		_rx_bits = 0;
 		_receive_all_packets = receive_all_packets;
 		_rx_active = 0;
@@ -122,7 +122,7 @@ bool ask_receiver_t::init(int rx_frequency, PinName rx_pin, uint8_t new_rx_addre
 		// attach the interrupt handler
 		// receiver interrupt frequency needs to be multipled by samples per bit
 
-		_rx_timer.attach(&_rx_interrupt_handler, 1.0f / (float)(rx_frequency * ASK_RECEIVER_SAMPLERS_PER_BIT));
+		_rx_timer.attach(&_rx_interrupt_handler, 1.0f / (float)(2 * rx_frequency));
 	}
 	return _is_initialized;
 }
@@ -215,7 +215,7 @@ void ask_receiver_t::status(ask_receiver_status_t* current_status)
 
 bool ask_receiver_t::is_valid_frequency(int frequency)
 {
-	static const int valid_frequencies[] = { 1000, 1250, 2500, 3125 };
+	static const int valid_frequencies[] = { 1000, 1250, 2000, 2500, 3125, 4000 };
 
 	// search valid frequency list for the value of frequency parameter
 	bool valid_frequency = false;
@@ -235,35 +235,39 @@ void ask_receiver_t::_rx_interrupt_handler()
 	uint32_t rx_crc_msb = ((uint32_t)rx_sample ^ rx_crc) & 1;
 	_ask_receiver->rx_entropy = ~((rx_crc_msb << 31) | ((rx_crc >> 1) ^ (0x6DB88320 & (0 - rx_crc_msb))));
 
-	// sum all samples till ramp reaches ASK_RECEIVER_RAMP_LENGTH
-	_ask_receiver->_rx_integrator += rx_sample;
-
-	if (rx_sample != _ask_receiver->_rx_last_sample)
+	// samples are stored to _ask_receiver->_samples
+	_ask_receiver->_samples[_ask_receiver->_sample_count] = rx_sample;
+	
+	// mod 2 increment sample count
+	_ask_receiver->_sample_count ^= 1;
+	
+	if (!_ask_receiver->_sample_count)
 	{
-		// ramp transition
-		// increase ramp by ASK_RECEIVER_RAMP_INCREMENT_RETARD if ramp < ASK_RECEIVER_RAMP_TRANSITION else by ASK_RECEIVER_RAMP_INCREMENT_ADVANCE
-		if (_ask_receiver->_rx_ramp < ASK_RECEIVER_RAMP_TRANSITION)
-			_ask_receiver->_rx_ramp += ASK_RECEIVER_RAMP_INCREMENT_RETARD;
+		// after reading two samples received bit is decided
+		uint8_t rx_bit = _ask_receiver->_samples[0] | _ask_receiver->_samples[1];
+		
+		// test if for phase error
+		if (_ask_receiver->_samples[0] != _ask_receiver->_samples[1])
+		{
+			if (_ask_receiver->_samples[0] != _ask_receiver->_flip_direction)
+			{
+				_ask_receiver->_edge_flip_repeat += 1;
+				if (_ask_receiver->_edge_flip_repeat == 6)
+				{
+					// fix phase error by skipping next sample
+					_ask_receiver->_edge_flip_repeat = 0;
+					_ask_receiver->_samples[0] = _ask_receiver->_samples[1];
+					_ask_receiver->_sample_count = 1;
+				}
+			}
+			_ask_receiver->_flip_direction = _ask_receiver->_samples[0];
+		}
 		else
-			_ask_receiver->_rx_ramp += ASK_RECEIVER_RAMP_INCREMENT_ADVANCE;
-		_ask_receiver->_rx_last_sample = rx_sample;
-	}
-	else
-	{
-		// no ramp transition
-		// increase ramp by standard increment
-		_ask_receiver->_rx_ramp += ASK_RECEIVER_RAMP_INCREMENT;
-	}
-	if (_ask_receiver->_rx_ramp >= ASK_RECEIVER_RAMP_LENGTH)
-	{
-		_ask_receiver->_rx_ramp -= ASK_RECEIVER_RAMP_LENGTH;
-
+			_ask_receiver->_edge_flip_repeat = 0;
+		
 		// received bits are shifted right and next bit is append to the end
 		// next bit is calculated from sum of received samples
-		_ask_receiver->_rx_bits = ((uint8_t)(_ask_receiver->_rx_integrator > (ASK_RECEIVER_SAMPLERS_PER_BIT / 2)) << 11) | (_ask_receiver->_rx_bits >> 1);
-		
-		// reset summed samples
-		_ask_receiver->_rx_integrator = 0;
+		_ask_receiver->_rx_bits = ((unsigned int)rx_bit << 11) | (_ask_receiver->_rx_bits >> 1);
 
 		if (_ask_receiver->_rx_active)
 		{

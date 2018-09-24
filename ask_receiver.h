@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK receiver version 1.4.1 2018-08-01 by Santtu Nyman.
+	Mbed OS ASK receiver version 1.5.0 2018-09-25 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,9 @@
 		The receiver can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.5.0 2018-09-25
+			New simpler interrupt handler for receiver
+			and valid frequencies are now extended to 1000, 1250, 2000, 2500, 3125 and 4000 Hz.
 		version 1.4.1 2018-08-01
 			rx_entropy bit mixing improved.
 		version 1.4.0 2018-07-19
@@ -26,7 +29,7 @@
 			Forgotten debug feature removed.
 			Some unnecessary comments removed.
 		version 1.0.3 2018-06-13
-			Valid frequencies are now limited to 1000, 1250, 2500 and 3125.
+			Valid frequencies are now limited to 1000, 1250, 2500 and 3125 Hz.
 		version 1.0.2 2018-06-11
 			frequencies in list of valid frequencies are now valid.
 		version 1.0.1 2018-06-11	  	
@@ -40,8 +43,8 @@
 #define ASK_RECEIVER_H
 
 #define ASK_RECEIVER_VERSION_MAJOR 1
-#define ASK_RECEIVER_VERSION_MINOR 4
-#define ASK_RECEIVER_VERSION_PATCH 1
+#define ASK_RECEIVER_VERSION_MINOR 5
+#define ASK_RECEIVER_VERSION_PATCH 0
 
 #define ASK_RECEIVER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_RECEIVER_VERSION_MAJOR << 16) | (ASK_RECEIVER_VERSION_MINOR << 8) | ASK_RECEIVER_VERSION_PATCH))
 
@@ -53,18 +56,11 @@
 #ifndef ASK_RECEIVER_BUFFER_SIZE
 #define ASK_RECEIVER_BUFFER_SIZE 64
 #endif
-#define ASK_RECEIVER_MAXIMUM_MESSAGE_SIZE 0xF8
+
+#define ASK_RECEIVER_PROTOCOL_MAXIMUM_MESSAGE_SIZE 0xF8
+#define ASK_RECEIVER_MAXIMUM_MESSAGE_SIZE (((ASK_RECEIVER_BUFFER_SIZE - 8) < ASK_RECEIVER_PROTOCOL_MAXIMUM_MESSAGE_SIZE) ? (ASK_RECEIVER_BUFFER_SIZE - 8) : ASK_RECEIVER_PROTOCOL_MAXIMUM_MESSAGE_SIZE)
 #define ASK_RECEIVER_BROADCAST_ADDRESS 0xFF
-#define ASK_RECEIVER_SAMPLERS_PER_BIT 8
-
 #define ASK_RECEIVER_START_SYMBOL 0xB38
-
-#define ASK_RECEIVER_RAMP_LENGTH 160
-#define ASK_RECEIVER_RAMP_INCREMENT (ASK_RECEIVER_RAMP_LENGTH / ASK_RECEIVER_SAMPLERS_PER_BIT)
-#define ASK_RECEIVER_RAMP_TRANSITION (ASK_RECEIVER_RAMP_LENGTH / 2)
-#define ASK_RECEIVER_RAMP_ADJUST ((ASK_RECEIVER_RAMP_INCREMENT / 2) - 1)
-#define ASK_RECEIVER_RAMP_INCREMENT_RETARD (ASK_RECEIVER_RAMP_INCREMENT - ASK_RECEIVER_RAMP_ADJUST)
-#define ASK_RECEIVER_RAMP_INCREMENT_ADVANCE (ASK_RECEIVER_RAMP_INCREMENT + ASK_RECEIVER_RAMP_ADJUST)
 
 typedef struct ask_receiver_status_t
 {
@@ -103,7 +99,7 @@ class ask_receiver_t
 			Parameters
 				rx_frequency
 					The frequency of the receiver. This value is required to be valid frequency or 0, or the function fails.
-					Valid frequencies are 1000, 1250, 2500 and 3125.
+					Valid frequencies are 1000, 1250, 2000, 2500, 3125 and 4000.
 					If this parameter is 0 and the receiver is initialized it will shutdown.
 					If this parameter is 0 and the receiver is not initialized it will not be initialized.
 					The receiver is not initialized after it is shutdown.
@@ -122,7 +118,7 @@ class ask_receiver_t
 			Parameters
 				rx_frequency
 					The frequency of the receiver. This value is required to be valid frequency or 0, or the function fails.
-					Valid frequencies are 1000, 1250, 2500 and 3125.
+					Valid frequencies are 1000, 1250, 2000, 2500, 3125 and 4000.
 					If this parameter is 0 and the receiver is initialized it will shutdown.
 					If this parameter is 0 and the receiver is not initialized it will not initialize.
 					The receiver is not initialized after it is shutdown.
@@ -143,7 +139,7 @@ class ask_receiver_t
 			Parameters
 				rx_frequency
 					The frequency of the receiver. This value is required to be valid frequency or 0, or the function fails.
-					Valid frequencies are 1000, 1250, 2500 and 3125.
+					Valid frequencies are 1000, 1250, 2000, 2500, 3125 and 4000.
 					If this parameter is 0 and the receiver is initialized it will shutdown.
 					If this parameter is 0 and the receiver is not initialized it will not initialize.
 					The receiver is not initialized after it is shutdown.
@@ -267,9 +263,10 @@ class ask_receiver_t
 		Ticker _rx_timer;
 
 		volatile int _packets_available;
-		uint8_t _rx_last_sample;
-		uint8_t _rx_ramp;
-		uint8_t _rx_integrator;
+		uint8_t _samples[2];
+		uint8_t _flip_direction;
+		uint8_t _sample_count;
+		uint8_t _edge_flip_repeat;
 		unsigned int _rx_bits;
 		bool _receive_all_packets;
 		volatile uint8_t _rx_active;

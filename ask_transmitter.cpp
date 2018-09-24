@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK transmitter version version 1.3.2 2018-08-01 by Santtu Nyman.
+	Mbed OS ASK transmitter version version 1.4.0 2018-09-25 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 */
 
@@ -220,7 +220,7 @@ void ask_transmitter_t::status(ask_transmitter_status_t* current_status)
 
 bool ask_transmitter_t::is_valid_frequency(int frequency)
 {
-	static const int valid_frequencies[] = { 1000, 1250, 2500, 3125 };
+	static const int valid_frequencies[] = { 1000, 1250, 2000, 2500, 3125, 4000 };
 
 	// search valid frequency list for the value of frequency parameter
 	bool valid_frequency = false;

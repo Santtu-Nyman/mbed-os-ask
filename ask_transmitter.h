@@ -1,5 +1,5 @@
 /*
-	Mbed OS ASK transmitter version version 1.3.2 2018-08-01 by Santtu Nyman.
+	Mbed OS ASK transmitter version version 1.4.0 2018-09-25 by Santtu Nyman.
 	This file is part of mbed-os-ask "https://github.com/Santtu-Nyman/mbed-os-ask".
 
 	Description
@@ -7,6 +7,8 @@
 		The transmitter can be used to communicate with RadioHead library.
 
 	Version history
+		version 1.5.0 2018-09-25
+			Valid frequencies are now extended to 1000, 1250, 2000, 2500, 3125 and 4000 Hz.
 		version 1.3.2 2018-08-01
 			Wired debug mode added.
 		version 1.3.1 2018-07-13
@@ -19,7 +21,7 @@
 			Status member function added.
 			Some unnecessary comments removed.
 		version 1.0.8 2018-06-13
-			Valid frequencies are now limited to 1000, 1250, 2500 and 3125.
+			Valid frequencies are now limited to 1000, 1250, 2500 and 3125 Hz.
 		version 1.0.7 2018-06-11
 			frequencies in list of valid frequencies are now valid.
 		version 1.0.6 2018-06-11
@@ -49,8 +51,8 @@
 #define ASK_TRANSMITTER_H
 
 #define ASK_TRANSMITTER_VERSION_MAJOR 1
-#define ASK_TRANSMITTER_VERSION_MINOR 3
-#define ASK_TRANSMITTER_VERSION_PATCH 2
+#define ASK_TRANSMITTER_VERSION_MINOR 4
+#define ASK_TRANSMITTER_VERSION_PATCH 0
 
 #define ASK_TRANSMITTER_IS_VERSION_ATLEAST(h, m, l) ((((unsigned long)(h) << 16) | ((unsigned long)(m) << 8) | (unsigned long)(l)) <= ((ASK_TRANSMITTER_VERSION_MAJOR << 16) | (ASK_TRANSMITTER_VERSION_MINOR << 8) | ASK_TRANSMITTER_VERSION_PATCH))
 
@@ -97,7 +99,7 @@ class ask_transmitter_t
 			Parameters
 				tx_frequency
 					The frequency of the transmitter. This value is required to be valid frequency or 0, or the function fails.
-					Valid frequencies are 1000, 1250, 2500 and 3125.
+					Valid frequencies are 1000, 1250, 2000, 2500, 3125 and 4000.
 					If this parameter is 0 and the transmitter is initialized it will shutdown.
 					If this parameter is 0 and the transmitter is not initialized it will not be initialized.
 					The transmitter is not initialized after it is shutdown.
@@ -116,7 +118,7 @@ class ask_transmitter_t
 			Parameters
 				tx_frequency
 					The frequency of the transmitter. This value is required to be valid frequency or 0, or the function fails.
-					Valid frequencies are 1000, 1250, 2500 and 3125.
+					Valid frequencies are 1000, 1250, 2000, 2500, 3125 and 4000.
 					If this parameter is 0 and the transmitter is initialized it will shutdown.
 					If this parameter is 0 and the transmitter is not initialized it will not be initialized.
 					The transmitter is not initialized after it is shutdown.
